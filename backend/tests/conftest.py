@@ -6,8 +6,13 @@ from opwise.domain.entities import (
     Factory,
     Machine,
     MachineDowntime,
+    ObjectiveMode,
     Operation,
     ProductionOrder,
+    Schedule,
+    ScheduledOperation,
+    ScheduleKPIs,
+    ScheduleStatus,
 )
 
 
@@ -94,3 +99,66 @@ def sample_factory(
         ],
         orders=sample_orders,
     )
+
+
+@pytest.fixture
+def valid_schedule() -> Schedule:
+    """Provide a verified feasible schedule for sample_factory passing all 8 invariants."""
+    kpis = ScheduleKPIs(
+        makespan_minutes=165,
+        total_weighted_tardiness=15,
+        late_order_count=1,
+        on_time_rate=50.0,
+    )
+    scheduled_ops = [
+        ScheduledOperation(
+            operation_id="OP-01-1",
+            order_id="ORD-01",
+            machine_id="M1",
+            sequence_number=1,
+            start_minute=0,
+            end_minute=30,
+            processing_duration_minutes=30,
+            slack_minutes=0,
+        ),
+        ScheduledOperation(
+            operation_id="OP-01-2",
+            order_id="ORD-01",
+            machine_id="M2",
+            sequence_number=2,
+            start_minute=30,
+            end_minute=75,
+            processing_duration_minutes=45,
+            slack_minutes=45,
+        ),
+        ScheduledOperation(
+            operation_id="OP-02-1",
+            order_id="ORD-02",
+            machine_id="M2",
+            sequence_number=1,
+            start_minute=75,
+            end_minute=115,
+            processing_duration_minutes=40,
+            slack_minutes=0,
+        ),
+        ScheduledOperation(
+            operation_id="OP-02-2",
+            order_id="ORD-02",
+            machine_id="M3",
+            sequence_number=2,
+            start_minute=115,
+            end_minute=165,
+            processing_duration_minutes=50,
+            slack_minutes=0,
+        ),
+    ]
+    return Schedule(
+        id="SCHED-VALID-01",
+        workspace_id="WS-001",
+        status=ScheduleStatus.OPTIMAL,
+        objective_mode=ObjectiveMode.PURE_MAKESPAN,
+        kpis=kpis,
+        scheduled_operations=scheduled_ops,
+        verified=False,
+    )
+
