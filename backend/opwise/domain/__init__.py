@@ -30,12 +30,25 @@ from opwise.domain.exceptions import (
     OrderWithoutOperationsError,
     ReferentialIntegrityError,
 )
+from opwise.domain.metrics import (
+    BOTTLENECK_DISCLAIMER,
+    BottleneckAnalysis,
+    MachineMetrics,
+    OrderMetrics,
+    ProductionScheduleMetrics,
+    ScheduleExplanation,
+    calculate_metrics_from_operations,
+    calculate_schedule_metrics,
+    reconcile_kpis,
+)
 from opwise.domain.validators import (
     FactoryValidationResult,
     validate_factory_for_optimization,
 )
 
 __all__ = [
+    "BOTTLENECK_DISCLAIMER",
+    "BottleneckAnalysis",
     "DomainError",
     "EmptyWorkspaceError",
     "Factory",
@@ -48,18 +61,25 @@ __all__ = [
     "InvalidSequenceError",
     "Machine",
     "MachineDowntime",
+    "MachineMetrics",
     "NormalizationResult",
     "ObjectiveMode",
     "Operation",
     "OpwiseError",
+    "OrderMetrics",
     "OrderWithoutOperationsError",
     "ProductionOrder",
+    "ProductionScheduleMetrics",
     "ReferentialIntegrityError",
     "Schedule",
+    "ScheduleExplanation",
     "ScheduleKPIs",
     "ScheduleStatus",
     "ScheduledOperation",
     "calculate_effective_horizon",
+    "calculate_metrics_from_operations",
+    "calculate_schedule_metrics",
     "normalize_machine_downtimes",
+    "reconcile_kpis",
     "validate_factory_for_optimization",
 ]
