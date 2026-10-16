@@ -1,0 +1,10 @@
+# Opwise Backend Pinned Requirements (Production Core)
+# Governed by PROJECT_RULES.md (Rule 1 & 7) and ARCHITECTURE.md
+
+pydantic==2.10.4
+pydantic-settings==2.7.0
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+sqlalchemy==2.0.36
+openpyxl==3.1.5
+ortools==9.11.4210
