@@ -124,21 +124,34 @@ def _explain_machine_utilization(machine_metrics: dict[str, MachineMetrics]) -> 
     explanations: list[ScheduleExplanation] = []
     for m_id in sorted(machine_metrics.keys()):
         mm = machine_metrics[m_id]
+        if mm.is_oversubscribed:
+            summary = (
+                f"WARNING: Machine {mm.machine_id} workload {mm.workload_minutes}m exceeds available capacity "
+                f"{mm.available_capacity_minutes}m (net utilization {mm.net_utilization_pct:.2f}% > 100%)."
+            )
+            reason = (
+                f"Workload {mm.workload_minutes}m exceeds available capacity {mm.available_capacity_minutes}m "
+                f"(downtime: {mm.downtime_minutes}m), indicating overlapping operations or downtime collisions in candidate schedule."
+            )
+        else:
+            summary = (
+                f"Machine {mm.machine_id} active machining: {mm.workload_minutes}m, "
+                f"maintenance downtime: {mm.downtime_minutes}m, idle: {mm.idle_minutes}m "
+                f"out of available capacity {mm.available_capacity_minutes}m "
+                f"(net utilization: {mm.net_utilization_pct:.2f}%, gross utilization: {mm.gross_utilization_pct:.2f}%)."
+            )
+            reason = f"Workload {mm.workload_minutes}m divided by available capacity {mm.available_capacity_minutes}m."
+
         explanations.append(
             ScheduleExplanation(
                 category="MACHINE_UTILIZATION",
                 entity_type="Machine",
                 entity_id=mm.machine_id,
-                summary=(
-                    f"Machine {mm.machine_id} active machining: {mm.workload_minutes}m, "
-                    f"maintenance downtime: {mm.downtime_minutes}m, idle: {mm.idle_minutes}m "
-                    f"out of available capacity {mm.available_capacity_minutes}m "
-                    f"(net utilization: {mm.net_utilization_pct:.2f}%, gross utilization: {mm.gross_utilization_pct:.2f}%)."
-                ),
+                summary=summary,
                 measured_value=mm.net_utilization_pct,
                 threshold_or_target=100.0,
                 mathematical_formula="U_m = W_m / (C_max - D_m) * 100%",
-                reason=f"Workload {mm.workload_minutes}m divided by available capacity {mm.available_capacity_minutes}m.",
+                reason=reason,
             )
         )
     return explanations

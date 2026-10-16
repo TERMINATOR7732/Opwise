@@ -328,6 +328,10 @@ def test_order_without_operations_and_empty_machines() -> None:
 
     assert metrics.order_metrics["O_EMPTY"].operation_count == 0
     assert metrics.order_metrics["O_EMPTY"].completion_minute == 0
+    assert metrics.order_metrics["O_EMPTY"].is_late is False
+    assert metrics.order_metrics["O_EMPTY"].is_on_time is False
+    assert metrics.on_time_order_count == 0
+    assert metrics.on_time_rate_pct == 0.0
     assert metrics.bottleneck.primary_bottleneck_machine_id is None
     order_exp = next(e for e in metrics.explanations if e.entity_id == "O_EMPTY")
     assert "0 operations scheduled" in order_exp.summary

@@ -25,6 +25,7 @@ class OrderMetrics:
     tardiness_weight: int
     weighted_tardiness: int
     is_late: bool
+    is_on_time: bool
     slack_minutes: int
     operation_count: int
     total_processing_minutes: int
@@ -42,6 +43,7 @@ class MachineMetrics:
     net_utilization_pct: float
     gross_utilization_pct: float
     assigned_operation_count: int
+    is_oversubscribed: bool = False
 
 
 @dataclass(frozen=True)

@@ -4,6 +4,7 @@ Governed by SPECIFICATION.md Section 5.1, Section 5.2, and TEST_AND_RELEASE_PLAN
 Pure Python, zero OR-Tools, persistence, or web framework imports.
 """
 
+import math
 from collections import defaultdict
 
 from opwise.domain.downtime import normalize_machine_downtimes
@@ -55,6 +56,7 @@ def _compute_order_metrics(
         w_j = order.tardiness_weight
         weighted = w_j * tardiness
         is_late = bool(order_ops and c_j > d_j)
+        is_on_time = bool(order_ops and c_j <= d_j)
         slack = max(0, d_j - c_j) if order_ops else 0
         proc_time = sum(op.processing_duration_minutes for op in order_ops)
 
@@ -67,6 +69,7 @@ def _compute_order_metrics(
             tardiness_weight=w_j,
             weighted_tardiness=weighted,
             is_late=is_late,
+            is_on_time=is_on_time,
             slack_minutes=slack,
             operation_count=len(order_ops),
             total_processing_minutes=proc_time,
@@ -74,8 +77,8 @@ def _compute_order_metrics(
 
     total_weighted_tardiness = sum(m.weighted_tardiness for m in order_metrics.values())
     late_orders = sum(1 for m in order_metrics.values() if m.is_late)
+    on_time_orders = sum(1 for m in order_metrics.values() if m.is_on_time)
     total_orders = len(factory.orders)
-    on_time_orders = total_orders - late_orders
     on_time_rate = (
         100.0 if total_orders == 0 else round((on_time_orders / total_orders) * 100.0, 2)
     )
@@ -111,6 +114,7 @@ def _compute_machine_metrics(
 
         available = max(0, makespan - observed_downtime)
         idle = max(0, available - workload)
+        is_oversubscribed = workload > available
         net_util = round((workload / available) * 100.0, 2) if available > 0 else 0.0
         gross_util = round((workload / makespan) * 100.0, 2) if makespan > 0 else 0.0
 
@@ -123,6 +127,7 @@ def _compute_machine_metrics(
             net_utilization_pct=net_util,
             gross_utilization_pct=gross_util,
             assigned_operation_count=len(m_ops),
+            is_oversubscribed=is_oversubscribed,
         )
 
     return metrics
@@ -216,8 +221,29 @@ def calculate_schedule_metrics(
     )
 
 
-def reconcile_kpis(kpis: ScheduleKPIs, metrics: ProductionScheduleMetrics) -> bool:
+def reconcile_kpis(kpis: object, metrics: object) -> bool:
     """Verify that schedule KPIs match newly calculated analytical metrics."""
+    if not isinstance(kpis, ScheduleKPIs) or not isinstance(metrics, ProductionScheduleMetrics):
+        return False
+
+    if (
+        kpis.makespan_minutes < 0
+        or metrics.makespan_minutes < 0
+        or kpis.total_weighted_tardiness < 0
+        or metrics.total_weighted_tardiness < 0
+        or kpis.late_order_count < 0
+        or metrics.late_order_count < 0
+    ):
+        return False
+
+    if not (
+        math.isfinite(kpis.on_time_rate)
+        and math.isfinite(metrics.on_time_rate_pct)
+        and 0.0 <= kpis.on_time_rate <= 100.0
+        and 0.0 <= metrics.on_time_rate_pct <= 100.0
+    ):
+        return False
+
     return (
         kpis.makespan_minutes == metrics.makespan_minutes
         and kpis.total_weighted_tardiness == metrics.total_weighted_tardiness
