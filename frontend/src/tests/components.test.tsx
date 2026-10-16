@@ -120,14 +120,15 @@ describe('UI Primitives and Layout Components', () => {
     expect(markup).toContain('invalid-route-xyz');
   });
 
-  it('renders Milestone 09/10 placeholders with honest disclosures', () => {
+  it('renders views and Milestone 09/10 placeholders with honest disclosures', () => {
     const factoryMarkup = renderToStaticMarkup(
       <RouterProvider initialHash="#factory">
-        <FactoryView />
+        <WorkspaceProvider>
+          <FactoryView />
+        </WorkspaceProvider>
       </RouterProvider>
     );
-    expect(factoryMarkup).toContain('Factory Management');
-    expect(factoryMarkup).toContain('Milestone 09 Implementation');
+    expect(factoryMarkup).toContain('No Workspace Selected');
 
     const planningMarkup = renderToStaticMarkup(
       <RouterProvider initialHash="#planning">

@@ -115,8 +115,8 @@ class FactoryRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_factory(self, workspace_id: str) -> Factory | None:
-        """Load complete workspace factory configuration as a pure domain object."""
+    async def get_factory_models(self, workspace_id: str) -> WorkspaceModel | None:
+        """Load complete workspace ORM model graph including machines and orders."""
         ws_stmt = (
             select(WorkspaceModel)
             .where(WorkspaceModel.id == workspace_id)
@@ -126,7 +126,11 @@ class FactoryRepository:
             )
         )
         res = await self.session.execute(ws_stmt)
-        ws = res.scalar_one_or_none()
+        return res.scalar_one_or_none()
+
+    async def get_factory(self, workspace_id: str) -> Factory | None:
+        """Load complete workspace factory configuration as a pure domain object."""
+        ws = await self.get_factory_models(workspace_id)
         if ws is None:
             return None
         return _map_workspace_to_factory(ws)

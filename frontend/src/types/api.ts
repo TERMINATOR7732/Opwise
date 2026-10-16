@@ -63,3 +63,82 @@ export interface ScheduleSummaryResponse {
   on_time_rate: number;
   created_at: string;
 }
+
+export interface MachineCreate {
+  external_id: string;
+  name: string;
+}
+
+export interface MachineResponse {
+  id: string;
+  external_id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface DowntimeCreate {
+  machine_id: string;
+  start_minute: number;
+  end_minute: number;
+  reason?: string | null;
+}
+
+export interface DowntimeResponse {
+  id: string;
+  machine_id: string;
+  start_minute: number;
+  end_minute: number;
+  reason: string | null;
+}
+
+export interface OperationCreate {
+  sequence_index: number;
+  machine_id: string;
+  processing_minutes: number;
+}
+
+export interface OperationResponse {
+  id: string;
+  order_id: string;
+  sequence_index: number;
+  machine_id: string;
+  processing_minutes: number;
+}
+
+export interface OrderCreate {
+  external_id: string;
+  name: string;
+  release_minute: number;
+  due_minute: number;
+  tardiness_weight: number;
+  operations: OperationCreate[];
+}
+
+export interface OrderResponse {
+  id: string;
+  external_id: string;
+  name: string;
+  release_minute: number;
+  due_minute: number;
+  tardiness_weight: number;
+  operations: OperationResponse[];
+}
+
+export interface FactoryConfigPayload {
+  machines: MachineCreate[];
+  downtimes: DowntimeCreate[];
+  orders: OrderCreate[];
+}
+
+export interface FactoryConfigResponse {
+  workspace_id: string;
+  machines: MachineResponse[];
+  downtimes: DowntimeResponse[];
+  orders: OrderResponse[];
+}
+
+export interface FactoryValidationResponse {
+  is_valid: boolean;
+  classification: string;
+  issues: string[];
+}

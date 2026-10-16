@@ -36,27 +36,27 @@ from opwise.persistence.models import (
 from opwise.persistence.repository import FactoryRepository, WorkspaceRepository
 
 
-def _map_orders_to_response(orders: list[ProductionOrder]) -> list[OrderResponse]:
-    """Map domain orders to API response models."""
+def _map_order_models_to_response(orders: list[ProductionOrderModel]) -> list[OrderResponse]:
+    """Map ORM orders to API response models."""
     res: list[OrderResponse] = []
     for o in orders:
         ops = [
             OperationResponse(
                 id=op.id,
                 order_id=op.order_id,
-                sequence_index=op.sequence_number,
+                sequence_index=op.sequence_index,
                 machine_id=op.machine_id,
-                processing_minutes=op.processing_duration_minutes,
+                processing_minutes=op.processing_minutes,
             )
             for op in o.operations
         ]
         res.append(
             OrderResponse(
                 id=o.id,
-                external_id=o.order_code,
-                name=o.order_code,
-                release_minute=o.release_time_minutes,
-                due_minute=o.due_date_minutes,
+                external_id=o.external_id,
+                name=o.name,
+                release_minute=o.release_minute,
+                due_minute=o.due_minute,
                 tardiness_weight=o.tardiness_weight,
                 operations=ops,
             )
@@ -74,17 +74,15 @@ class FactoryService:
 
     async def get_factory_config(self, workspace_id: str) -> FactoryConfigResponse:
         """Fetch complete factory configuration for a workspace."""
-        ws = await self.workspace_repo.get_by_id(workspace_id)
+        ws = await self.factory_repo.get_factory_models(workspace_id)
         if ws is None:
-            raise ResourceNotFoundError("Workspace", workspace_id)
-
-        factory = await self.factory_repo.get_factory(workspace_id)
-        if factory is None:
+            if await self.workspace_repo.get_by_id(workspace_id) is None:
+                raise ResourceNotFoundError("Workspace", workspace_id)
             return FactoryConfigResponse(workspace_id=workspace_id)
 
         machines = [
-            MachineResponse(id=m.id, external_id=m.id, name=m.name, created_at=ws.created_at)
-            for m in factory.machines
+            MachineResponse(id=m.id, external_id=m.external_id, name=m.name, created_at=m.created_at)
+            for m in ws.machines
         ]
         downtimes = [
             DowntimeResponse(
@@ -94,13 +92,14 @@ class FactoryService:
                 end_minute=dt.end_minute,
                 reason=dt.reason,
             )
-            for dt in factory.downtimes
+            for m in ws.machines
+            for dt in m.downtimes
         ]
         return FactoryConfigResponse(
             workspace_id=workspace_id,
             machines=machines,
             downtimes=downtimes,
-            orders=_map_orders_to_response(factory.orders),
+            orders=_map_order_models_to_response(ws.orders),
         )
 
     def _build_machine_models(

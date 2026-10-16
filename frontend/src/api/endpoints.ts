@@ -6,6 +6,9 @@
 import { api } from './client';
 import {
   CreateWorkspaceRequest,
+  FactoryConfigPayload,
+  FactoryConfigResponse,
+  FactoryValidationResponse,
   HealthResponse,
   ScheduleSummaryResponse,
   WorkspaceResponse,
@@ -31,4 +34,16 @@ export const apiEndpoints = {
   /** List schedules belonging to a workspace */
   listSchedules: (workspaceId: string): Promise<ScheduleSummaryResponse[]> =>
     api.get<ScheduleSummaryResponse[]>(`/workspaces/${workspaceId}/schedules`),
+
+  /** Fetch complete factory configuration for a workspace */
+  getFactory: (workspaceId: string): Promise<FactoryConfigResponse> =>
+    api.get<FactoryConfigResponse>(`/workspaces/${workspaceId}/factory`),
+
+  /** Atomically replace factory configuration for a workspace */
+  replaceFactory: (workspaceId: string, payload: FactoryConfigPayload): Promise<FactoryConfigResponse> =>
+    api.put<FactoryConfigResponse>(`/workspaces/${workspaceId}/factory`, payload),
+
+  /** Dry-run validation of factory inputs without saving */
+  validateFactory: (workspaceId: string, payload: FactoryConfigPayload): Promise<FactoryValidationResponse> =>
+    api.post<FactoryValidationResponse>(`/workspaces/${workspaceId}/factory/validate`, payload),
 };
