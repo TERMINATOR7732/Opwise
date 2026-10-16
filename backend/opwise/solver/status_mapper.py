@@ -8,7 +8,7 @@ from ortools.sat.python import cp_model
 from opwise.domain.entities import ScheduleStatus
 
 
-def map_cp_sat_status(cp_sat_status: int) -> ScheduleStatus:
+def map_cp_sat_status(cp_sat_status: object) -> ScheduleStatus:
     """Translate an OR-Tools CP-SAT integer status into an honest domain ScheduleStatus.
 
     Mapping Rules:

@@ -72,7 +72,7 @@ class CPSATScheduler:
         raw_status = solver.Solve(cp_model_bundle.model)
         wall_clock = time.perf_counter() - start_time
 
-        solver_status = map_cp_sat_status(int(raw_status))
+        solver_status = map_cp_sat_status(raw_status)
 
         if solver_status in {ScheduleStatus.OPTIMAL, ScheduleStatus.FEASIBLE}:
             schedule, report = extract_and_verify_schedule(
