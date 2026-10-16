@@ -96,3 +96,14 @@ class IntegerOverflowError(DomainError):
         super().__init__(message=message, error_code="INTEGER_OVERFLOW_RISK", status_code=422)
         self.calculated_horizon = calculated_horizon
         self.max_allowed = max_allowed
+
+
+class ResourceNotFoundError(OpwiseError):
+    """Raised when a requested resource (e.g., workspace, schedule) is not found."""
+
+    def __init__(self, resource_type: str, resource_id: str) -> None:
+        message = f"{resource_type} with ID '{resource_id}' was not found."
+        super().__init__(message=message, error_code="RESOURCE_NOT_FOUND", status_code=404)
+        self.resource_type = resource_type
+        self.resource_id = resource_id
+

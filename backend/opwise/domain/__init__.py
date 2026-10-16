@@ -29,6 +29,7 @@ from opwise.domain.exceptions import (
     OpwiseError,
     OrderWithoutOperationsError,
     ReferentialIntegrityError,
+    ResourceNotFoundError,
 )
 from opwise.domain.metrics import (
     BOTTLENECK_DISCLAIMER,
@@ -71,6 +72,7 @@ __all__ = [
     "ProductionOrder",
     "ProductionScheduleMetrics",
     "ReferentialIntegrityError",
+    "ResourceNotFoundError",
     "Schedule",
     "ScheduleExplanation",
     "ScheduleKPIs",
