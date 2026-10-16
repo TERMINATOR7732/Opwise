@@ -154,3 +154,34 @@ async def test_transaction_rollback_on_failure() -> None:
     finally:
         if os.path.exists(temp_db):
             os.remove(temp_db)
+
+
+@pytest.mark.asyncio
+async def test_startup_migration_mismatch_aborts() -> None:
+    """TM-07.3: Database with missing or mismatched alembic_version causes startup to abort."""
+    from opwise.main import create_app, lifespan, verify_database_schema
+
+    with tempfile.NamedTemporaryFile(suffix=".sqlite3", delete=False) as f:
+        temp_db = f.name
+
+    try:
+        # Create an empty, unmigrated database
+        settings = Settings(db_url=f"sqlite+aiosqlite:///{temp_db}")
+        engine = create_database_engine(settings)
+
+        # 1. verify_database_schema directly on unmigrated database raises RuntimeError
+        with pytest.raises(RuntimeError) as exc_info:
+            await verify_database_schema(engine, expected_revision="001_initial_schema")
+        assert "alembic upgrade head" in str(exc_info.value).lower()
+
+        # 2. verify lifespan startup on unmigrated database raises RuntimeError
+        app = create_app(settings)
+        with pytest.raises(RuntimeError):
+            async with lifespan(app):
+                pass
+
+        await engine.dispose()
+    finally:
+        if os.path.exists(temp_db):
+            os.remove(temp_db)
+

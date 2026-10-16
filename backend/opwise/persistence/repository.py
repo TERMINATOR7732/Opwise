@@ -14,6 +14,7 @@ from opwise.domain.entities import (
     Factory,
     Machine,
     MachineDowntime,
+    ObjectiveMode,
     Operation,
     ProductionOrder,
     Schedule,
@@ -153,6 +154,15 @@ class FactoryRepository:
         await self.session.flush()
 
 
+def _map_str_to_objective_mode(mode_str: str) -> ObjectiveMode:
+    """Map string representation to ObjectiveMode enum."""
+    if mode_str in ("HIERARCHICAL", "HIERARCHICAL_LEXICOGRAPHIC"):
+        return ObjectiveMode.HIERARCHICAL_LEXICOGRAPHIC
+    if mode_str == "PURE_WEIGHTED_TARDINESS":
+        return ObjectiveMode.PURE_WEIGHTED_TARDINESS
+    return ObjectiveMode.PURE_MAKESPAN
+
+
 class ScheduleRepository:
     """Repository managing Schedule and ScheduledOperation persistence."""
 
@@ -191,19 +201,30 @@ class ScheduleRepository:
         deterministic_time: float | None,
         input_snapshot_json: str,
         stage_telemetry: dict[str, Any] | None,
+        objective_value: int | None = None,
+        best_objective_bound: int | None = None,
+        optimality_gap: float | None = None,
+        verification_status: str | None = None,
     ) -> ScheduleModel:
         """Construct an ORM ScheduleModel instance from domain objects and solver telemetry."""
         telem = stage_telemetry or {}
         st1 = telem.get("stage1", {})
         st2 = telem.get("stage2", {})
+        verif_status = (
+            verification_status
+            if verification_status is not None
+            else ("VERIFIED" if schedule.verified else "VERIFICATION_FAILED")
+        )
         return ScheduleModel(
             id=schedule.id,
             workspace_id=workspace_id,
             name=name,
             objective_type=schedule.objective_mode.value,
             solver_status=schedule.status.value,
-            verification_status="VERIFIED" if schedule.verified else "UNVERIFIED",
-            objective_value=schedule.kpis.makespan_minutes if schedule.status == ScheduleStatus.OPTIMAL else None,
+            verification_status=verif_status,
+            objective_value=objective_value,
+            best_objective_bound=best_objective_bound,
+            optimality_gap=optimality_gap,
             stage1_status=st1.get("status"),
             stage1_objective_value=st1.get("objective_value"),
             stage1_best_bound=st1.get("best_bound"),
@@ -230,6 +251,10 @@ class ScheduleRepository:
         deterministic_time: float | None = None,
         input_snapshot_json: str = "{}",
         stage_telemetry: dict[str, Any] | None = None,
+        objective_value: int | None = None,
+        best_objective_bound: int | None = None,
+        optimality_gap: float | None = None,
+        verification_status: str | None = None,
     ) -> ScheduleModel:
         """Persist a schedule and its allocated operations atomically."""
         sched_model = self._build_schedule_model(
@@ -240,6 +265,10 @@ class ScheduleRepository:
             deterministic_time=deterministic_time,
             input_snapshot_json=input_snapshot_json,
             stage_telemetry=stage_telemetry,
+            objective_value=objective_value,
+            best_objective_bound=best_objective_bound,
+            optimality_gap=optimality_gap,
+            verification_status=verification_status,
         )
         self.session.add(sched_model)
 
@@ -285,7 +314,7 @@ class ScheduleRepository:
             id=model.id,
             workspace_id=model.workspace_id,
             status=ScheduleStatus(model.solver_status),
-            objective_mode=model.objective_type,  # type: ignore[arg-type]
+            objective_mode=_map_str_to_objective_mode(model.objective_type),
             kpis=kpis,
             scheduled_operations=scheduled_ops,
             verified=model.verification_status == "VERIFIED",

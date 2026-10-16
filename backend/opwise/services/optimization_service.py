@@ -4,7 +4,6 @@ Governed by DATA_AND_API.md Section 3.3, ADR-002, ADR-003, and PROJECT_RULES.md.
 Preserves existing solver, verifier, and deterministic metrics engine contracts.
 """
 
-import json
 import uuid
 from typing import Any
 
@@ -16,6 +15,7 @@ from opwise.api.schemas.schedule import (
     ScheduledOperationResponse,
     ScheduleMetricsResponse,
     ScheduleTelemetryResponse,
+    StageTelemetryResponse,
     VerificationReportResponse,
 )
 from opwise.domain.entities import (
@@ -33,6 +33,7 @@ from opwise.domain.metrics import calculate_schedule_metrics
 from opwise.domain.metrics_types import ProductionScheduleMetrics
 from opwise.persistence.models import ScheduleModel
 from opwise.persistence.repository import FactoryRepository, ScheduleRepository, WorkspaceRepository
+from opwise.services.snapshot import reconstruct_factory_from_snapshot, serialize_factory_snapshot
 from opwise.solver.engine import CPSATScheduler
 from opwise.solver.solver_types import SolverConfig, SolverResult
 from opwise.verifier.independent_verifier import ScheduleVerifier
@@ -58,51 +59,72 @@ class OptimizationService:
         }
         return mapping.get(mode_str.upper(), ObjectiveMode.PURE_MAKESPAN)
 
-    def _build_snapshot_json(self, factory_data: Any) -> str:
-        """Serialize current factory entities into input snapshot JSON."""
-        return json.dumps(
-            {
-                "machines": [{"id": m.id, "name": m.name} for m in factory_data.machines],
-                "downtimes": [
-                    {"id": dt.id, "machine_id": dt.machine_id, "start": dt.start_minute, "end": dt.end_minute}
-                    for dt in factory_data.downtimes
-                ],
-                "orders": [
-                    {
-                        "id": o.id,
-                        "code": o.order_code,
-                        "release": o.release_time_minutes,
-                        "due": o.due_date_minutes,
-                        "weight": o.tardiness_weight,
-                        "operations": [
-                            {"id": op.id, "seq": op.sequence_number, "m": op.machine_id, "dur": op.processing_duration_minutes}
-                            for op in o.operations
-                        ],
-                    }
-                    for o in factory_data.orders
-                ],
-            }
-        )
+    def _extract_stage_telemetry(self, result: SolverResult) -> dict[str, Any] | None:
+        """Extract stage telemetry dictionaries for hierarchical lexicographic solves."""
+        if result.stage1_status is None and result.stage2_status is None:
+            return None
+        st1: dict[str, Any] = {}
+        if result.stage1_status is not None:
+            st1["status"] = result.stage1_status.value
+            st1["objective_value"] = int(result.stage1_objective) if result.stage1_objective is not None else None
+        st2: dict[str, Any] = {}
+        if result.stage2_status is not None:
+            st2["status"] = result.stage2_status.value
+            st2["objective_value"] = int(result.stage2_objective) if result.stage2_objective is not None else None
+        return {"stage1": st1, "stage2": st2}
 
-    def _build_infeasible_response(
+    def _build_stage_telemetry_responses(
+        self, result: SolverResult
+    ) -> tuple[StageTelemetryResponse | None, StageTelemetryResponse | None]:
+        """Build API stage telemetry response objects for stage1 and stage2."""
+        st1 = (
+            StageTelemetryResponse(
+                status=result.stage1_status.value,
+                objective_value=int(result.stage1_objective) if result.stage1_objective is not None else None,
+            )
+            if result.stage1_status
+            else None
+        )
+        st2 = (
+            StageTelemetryResponse(
+                status=result.stage2_status.value,
+                objective_value=int(result.stage2_objective) if result.stage2_objective is not None else None,
+            )
+            if result.stage2_status
+            else None
+        )
+        return st1, st2
+
+    def _build_unsuccessful_response(
         self, schedule_id: str, name: str, req: OptimizeRequest, result: SolverResult
     ) -> OptimizeResponseData:
-        """Format response for an infeasible model outcome."""
+        """Format response for an unsuccessful model outcome (infeasible, timeout, etc)."""
+        term_reason = (
+            "MODEL_PROVEN_INFEASIBLE"
+            if result.status == ScheduleStatus.INFEASIBLE
+            else f"SOLVER_STATUS_{result.status.value}"
+        )
+        st1, st2 = self._build_stage_telemetry_responses(result)
         return OptimizeResponseData(
             schedule_id=schedule_id,
             name=name,
             objective_type=req.objective_type,
-            solver_status=ScheduleStatus.INFEASIBLE.value,
+            solver_status=result.status.value,
             verification_status="SKIPPED",
+            stage1_telemetry=st1,
+            stage2_telemetry=st2,
             metrics=ScheduleMetricsResponse(
                 makespan_minutes=0,
                 weighted_tardiness=0,
                 late_order_count=0,
                 on_time_rate=0.0,
+                objective_value=int(result.objective_value) if result.objective_value is not None else None,
+                best_objective_bound=int(result.best_bound) if result.best_bound is not None else None,
             ),
             solver_telemetry=ScheduleTelemetryResponse(
                 wall_clock_time_seconds=result.wall_clock_seconds,
-                termination_reason="MODEL_PROVEN_INFEASIBLE",
+                deterministic_time=result.deterministic_time,
+                termination_reason=term_reason,
             ),
             verification_report=None,
             scheduled_operations=[],
@@ -128,16 +150,16 @@ class OptimizationService:
         scheduler = CPSATScheduler()
         result = scheduler.solve(factory, objective_mode=mode, config=cfg)
 
-        if result.status == ScheduleStatus.INFEASIBLE:
-            return await self._handle_infeasible_solve(workspace_id, factory, request, mode, result)
-
         if result.schedule is None:
-            raise EmptyWorkspaceError()
+            return await self._handle_unsuccessful_solve(workspace_id, factory, request, mode, result)
 
         sched = result.schedule
         metrics = calculate_schedule_metrics(factory, sched)
         v_rep = result.verification_report
-        snapshot_json = self._build_snapshot_json(factory)
+        snapshot_json = serialize_factory_snapshot(factory)
+        stage_telem = self._extract_stage_telemetry(result)
+        opt_gap = 0.0 if result.status == ScheduleStatus.OPTIMAL else None
+        verif_status = "VERIFIED" if (v_rep and v_rep.is_valid) else "VERIFICATION_FAILED"
 
         saved_model = await self.schedule_repo.save_schedule(
             workspace_id=workspace_id,
@@ -146,10 +168,15 @@ class OptimizationService:
             wall_clock_seconds=result.wall_clock_seconds,
             deterministic_time=result.deterministic_time,
             input_snapshot_json=snapshot_json,
+            stage_telemetry=stage_telem,
+            objective_value=int(result.objective_value) if result.objective_value is not None else None,
+            best_objective_bound=int(result.best_bound) if result.best_bound is not None else None,
+            optimality_gap=opt_gap,
+            verification_status=verif_status,
         )
         return self._build_optimization_response(saved_model, sched, metrics, result, v_rep)
 
-    async def _handle_infeasible_solve(
+    async def _handle_unsuccessful_solve(
         self,
         workspace_id: str,
         factory: Factory,
@@ -157,25 +184,32 @@ class OptimizationService:
         mode: ObjectiveMode,
         result: SolverResult,
     ) -> OptimizeResponseData:
-        """Handle persistence and response formatting for infeasible solver outcomes."""
-        infeasible_id = str(uuid.uuid4())
+        """Handle persistence and response formatting for unsuccessful solver outcomes."""
+        unsuccessful_id = str(uuid.uuid4())
         empty_sched = Schedule(
-            id=infeasible_id,
+            id=unsuccessful_id,
             workspace_id=workspace_id,
-            status=ScheduleStatus.INFEASIBLE,
+            status=result.status,
             objective_mode=mode,
             kpis=ScheduleKPIs(0, 0, 0, 0.0),
             scheduled_operations=[],
             verified=False,
         )
+        stage_telem = self._extract_stage_telemetry(result)
         await self.schedule_repo.save_schedule(
             workspace_id=workspace_id,
             schedule=empty_sched,
             name=request.name,
             wall_clock_seconds=result.wall_clock_seconds,
-            input_snapshot_json=self._build_snapshot_json(factory),
+            deterministic_time=result.deterministic_time,
+            input_snapshot_json=serialize_factory_snapshot(factory),
+            stage_telemetry=stage_telem,
+            objective_value=int(result.objective_value) if result.objective_value is not None else None,
+            best_objective_bound=int(result.best_bound) if result.best_bound is not None else None,
+            optimality_gap=None,
+            verification_status="SKIPPED",
         )
-        return self._build_infeasible_response(infeasible_id, request.name, request, result)
+        return self._build_unsuccessful_response(unsuccessful_id, request.name, request, result)
 
     def _build_metrics_response(
         self, metrics: ProductionScheduleMetrics, result: SolverResult
@@ -229,12 +263,15 @@ class OptimizationService:
             if v_rep
             else None
         )
+        st1, st2 = self._build_stage_telemetry_responses(result)
         return OptimizeResponseData(
             schedule_id=saved_model.id,
             name=saved_model.name,
             objective_type=saved_model.objective_type,
             solver_status=saved_model.solver_status,
             verification_status=saved_model.verification_status,
+            stage1_telemetry=st1,
+            stage2_telemetry=st2,
             metrics=metrics_resp,
             solver_telemetry=telem_resp,
             verification_report=verif_resp,
@@ -243,13 +280,21 @@ class OptimizationService:
 
     async def verify_schedule(self, workspace_id: str, schedule_id: str) -> VerificationReportResponse:
         """Run on-demand clean-room verification against a stored schedule."""
+        ws = await self.workspace_repo.get_by_id(workspace_id)
+        if ws is None:
+            raise ResourceNotFoundError("Workspace", workspace_id)
+
         sched_model = await self.schedule_repo.get_by_id(workspace_id, schedule_id)
         if sched_model is None:
             raise ResourceNotFoundError("Schedule", schedule_id)
 
-        factory = await self.factory_repo.get_factory(workspace_id)
+        factory: Factory | None = None
+        if sched_model.input_snapshot_json:
+            factory = reconstruct_factory_from_snapshot(workspace_id, sched_model.input_snapshot_json)
         if factory is None:
-            raise ResourceNotFoundError("Workspace", workspace_id)
+            factory = await self.factory_repo.get_factory(workspace_id)
+        if factory is None:
+            raise ResourceNotFoundError("Factory", workspace_id)
 
         domain_schedule = self.schedule_repo.to_domain_schedule(sched_model)
         verifier = ScheduleVerifier()

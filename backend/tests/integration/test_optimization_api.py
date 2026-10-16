@@ -7,6 +7,7 @@ import os
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -15,8 +16,10 @@ from fastapi import FastAPI
 from alembic import command
 from alembic.config import Config
 from opwise.config import Settings
+from opwise.domain.entities import ObjectiveMode, ScheduleStatus
 from opwise.main import create_app
 from opwise.persistence.database import create_database_engine, create_session_factory
+from opwise.solver.solver_types import SolverResult
 
 
 @pytest.fixture
@@ -195,3 +198,127 @@ async def test_optimize_infeasible_schedule(app_with_db: FastAPI) -> None:
         assert data["solver_status"] == "INFEASIBLE"
         assert data["verification_status"] == "SKIPPED"
         assert data["scheduled_operations"] == []
+
+
+@pytest.mark.asyncio
+async def test_cross_workspace_schedule_isolation(app_with_db: FastAPI) -> None:
+    """Verify schedules are strictly isolated to their originating workspace."""
+    transport = httpx.ASGITransport(app=app_with_db)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        # Create Workspace A and Workspace B
+        ws_a = (await client.post("/api/v1/workspaces", json={"name": "WS A"})).json()["data"]["id"]
+        ws_b = (await client.post("/api/v1/workspaces", json={"name": "WS B"})).json()["data"]["id"]
+
+        # Setup and optimize in Workspace A
+        factory_a = {
+            "machines": [{"external_id": "M1", "name": "Mill A"}],
+            "downtimes": [],
+            "orders": [
+                {
+                    "external_id": "ORD-A",
+                    "name": "Job A",
+                    "release_minute": 0,
+                    "due_minute": 60,
+                    "tardiness_weight": 1,
+                    "operations": [{"sequence_index": 1, "machine_id": "M1", "processing_minutes": 20}],
+                }
+            ],
+        }
+        await client.put(f"/api/v1/workspaces/{ws_a}/factory", json=factory_a)
+        opt_res = await client.post(f"/api/v1/workspaces/{ws_a}/optimize", json={"name": "Plan A"})
+        sched_a_id = opt_res.json()["data"]["schedule_id"]
+
+        # Attempt to access or verify Schedule A through Workspace B
+        get_res = await client.get(f"/api/v1/workspaces/{ws_b}/schedules/{sched_a_id}")
+        assert get_res.status_code == 404
+        assert get_res.json()["error"]["code"] == "RESOURCE_NOT_FOUND"
+
+        verif_res = await client.post(f"/api/v1/workspaces/{ws_b}/schedules/{sched_a_id}/verify")
+        assert verif_res.status_code == 404
+        assert verif_res.json()["error"]["code"] == "RESOURCE_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_hierarchical_stage_telemetry_persisted_and_returned(app_with_db: FastAPI) -> None:
+    """Verify hierarchical lexicographic stage telemetry is populated in response and stored."""
+    transport = httpx.ASGITransport(app=app_with_db)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        ws_id = (await client.post("/api/v1/workspaces", json={"name": "Lex WS"})).json()["data"]["id"]
+        factory_payload = {
+            "machines": [{"external_id": "M1", "name": "Mill 1"}],
+            "downtimes": [],
+            "orders": [
+                {
+                    "external_id": "O1",
+                    "name": "Job 1",
+                    "release_minute": 0,
+                    "due_minute": 50,
+                    "tardiness_weight": 2,
+                    "operations": [{"sequence_index": 1, "machine_id": "M1", "processing_minutes": 25}],
+                }
+            ],
+        }
+        await client.put(f"/api/v1/workspaces/{ws_id}/factory", json=factory_payload)
+        opt_res = await client.post(
+            f"/api/v1/workspaces/{ws_id}/optimize",
+            json={"name": "Lex Run", "objective_type": "HIERARCHICAL"},
+        )
+        assert opt_res.status_code == 200
+        data = opt_res.json()["data"]
+        assert data["stage1_telemetry"] is not None
+        assert data["stage1_telemetry"]["status"] in ("OPTIMAL", "FEASIBLE")
+        assert data["stage2_telemetry"] is not None
+
+        sched_id = data["schedule_id"]
+        detail_res = await client.get(f"/api/v1/workspaces/{ws_id}/schedules/{sched_id}")
+        assert detail_res.status_code == 200
+        detail_data = detail_res.json()["data"]
+        assert detail_data["stage1_telemetry"] is not None
+        assert detail_data["stage2_telemetry"] is not None
+
+
+@pytest.mark.asyncio
+async def test_solver_timeout_unsuccessful_outcome(app_with_db: FastAPI) -> None:
+    """Verify solver timeout with 0 solutions returns HTTP 200 with SKIPPED verification."""
+    transport = httpx.ASGITransport(app=app_with_db)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        ws_id = (await client.post("/api/v1/workspaces", json={"name": "Timeout WS"})).json()["data"]["id"]
+        factory_payload = {
+            "machines": [{"external_id": "M1", "name": "Mill 1"}],
+            "downtimes": [],
+            "orders": [
+                {
+                    "external_id": "O1",
+                    "name": "Job 1",
+                    "release_minute": 0,
+                    "due_minute": 50,
+                    "tardiness_weight": 1,
+                    "operations": [{"sequence_index": 1, "machine_id": "M1", "processing_minutes": 25}],
+                }
+            ],
+        }
+        await client.put(f"/api/v1/workspaces/{ws_id}/factory", json=factory_payload)
+
+        mock_timeout_result = SolverResult(
+            status=ScheduleStatus.TIMEOUT,
+            schedule=None,
+            objective_mode=ObjectiveMode.PURE_MAKESPAN,
+            wall_clock_seconds=30.0,
+            best_bound=45.0,
+            deterministic_time=1.23,
+        )
+
+        with patch("opwise.services.optimization_service.CPSATScheduler.solve", return_value=mock_timeout_result):
+            resp = await client.post(
+                f"/api/v1/workspaces/{ws_id}/optimize",
+                json={"name": "Timeout Solve", "objective_type": "PURE_MAKESPAN"},
+            )
+            assert resp.status_code == 200
+            data = resp.json()["data"]
+            assert data["solver_status"] == "TIMEOUT"
+            assert data["verification_status"] == "SKIPPED"
+            assert data["scheduled_operations"] == []
+            assert data["metrics"]["makespan_minutes"] == 0
+            assert data["metrics"]["best_objective_bound"] == 45
+            assert data["solver_telemetry"]["wall_clock_time_seconds"] == 30.0
+

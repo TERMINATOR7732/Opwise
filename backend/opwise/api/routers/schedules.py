@@ -5,7 +5,7 @@ Governed by DATA_AND_API.md Section 3.2.
 
 from fastapi import APIRouter
 
-from opwise.api.dependencies import OptimizationServiceDep, ScheduleRepoDep
+from opwise.api.dependencies import OptimizationServiceDep, ScheduleRepoDep, WorkspaceRepoDep
 from opwise.api.schemas.common import SuccessEnvelope
 from opwise.api.schemas.schedule import (
     ScheduleDetailResponse,
@@ -13,6 +13,7 @@ from opwise.api.schemas.schedule import (
     ScheduleMetricsResponse,
     ScheduleSummaryResponse,
     ScheduleTelemetryResponse,
+    StageTelemetryResponse,
     VerificationReportResponse,
 )
 from opwise.domain.exceptions import ResourceNotFoundError
@@ -50,6 +51,26 @@ def _build_schedule_detail(m: ScheduleModel) -> ScheduleDetailResponse:
         deterministic_time=m.solver_deterministic_time,
         termination_reason=f"SOLVER_STATUS_{m.solver_status}",
     )
+    st1 = (
+        StageTelemetryResponse(
+            status=m.stage1_status,
+            objective_value=m.stage1_objective_value,
+            best_bound=m.stage1_best_bound,
+            wall_clock_seconds=m.stage1_wall_clock_seconds,
+        )
+        if m.stage1_status is not None
+        else None
+    )
+    st2 = (
+        StageTelemetryResponse(
+            status=m.stage2_status,
+            objective_value=m.stage2_objective_value,
+            best_bound=m.stage2_best_bound,
+            wall_clock_seconds=m.stage2_wall_clock_seconds,
+        )
+        if m.stage2_status is not None
+        else None
+    )
     return ScheduleDetailResponse(
         id=m.id,
         workspace_id=m.workspace_id,
@@ -57,6 +78,8 @@ def _build_schedule_detail(m: ScheduleModel) -> ScheduleDetailResponse:
         objective_type=m.objective_type,
         solver_status=m.solver_status,
         verification_status=m.verification_status,
+        stage1_telemetry=st1,
+        stage2_telemetry=st2,
         metrics=metrics,
         solver_telemetry=telem,
         scheduled_operations=ops,
@@ -68,8 +91,13 @@ def _build_schedule_detail(m: ScheduleModel) -> ScheduleDetailResponse:
 async def list_schedules(
     workspace_id: str,
     repo: ScheduleRepoDep,
+    ws_repo: WorkspaceRepoDep,
 ) -> SuccessEnvelope[list[ScheduleSummaryResponse]]:
     """List historical optimization schedules for a workspace."""
+    ws = await ws_repo.get_by_id(workspace_id)
+    if ws is None:
+        raise ResourceNotFoundError("Workspace", workspace_id)
+
     models = await repo.list_by_workspace(workspace_id)
     data = [
         ScheduleSummaryResponse(
@@ -95,8 +123,13 @@ async def get_schedule(
     workspace_id: str,
     schedule_id: str,
     repo: ScheduleRepoDep,
+    ws_repo: WorkspaceRepoDep,
 ) -> SuccessEnvelope[ScheduleDetailResponse]:
     """Get full schedule details, Gantt timestamps, and solver telemetry."""
+    ws = await ws_repo.get_by_id(workspace_id)
+    if ws is None:
+        raise ResourceNotFoundError("Workspace", workspace_id)
+
     m = await repo.get_by_id(workspace_id, schedule_id)
     if m is None:
         raise ResourceNotFoundError("Schedule", schedule_id)

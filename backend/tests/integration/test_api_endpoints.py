@@ -154,3 +154,16 @@ async def test_validation_error_envelope_formatting(app_with_db: FastAPI) -> Non
         assert body["error"]["code"] == "VALIDATION_FAILED"
         assert isinstance(body["error"]["details"], list)
         assert "timestamp" in body["metadata"]
+
+
+@pytest.mark.asyncio
+async def test_list_schedules_non_existent_workspace_returns_404(app_with_db: FastAPI) -> None:
+    """Verify GET /workspaces/{id}/schedules returns 404 if workspace does not exist."""
+    transport = httpx.ASGITransport(app=app_with_db)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        resp = await client.get("/api/v1/workspaces/non-existent-ws-id/schedules")
+        assert resp.status_code == 404
+        body = resp.json()
+        assert body["success"] is False
+        assert body["error"]["code"] == "RESOURCE_NOT_FOUND"
+

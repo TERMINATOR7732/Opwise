@@ -9,6 +9,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from opwise.api.error_handlers import (
@@ -22,6 +24,30 @@ from opwise.config import Settings, get_settings
 from opwise.domain.exceptions import OpwiseError
 from opwise.persistence.database import create_database_engine, create_session_factory
 
+EXPECTED_ALEMBIC_REVISION = "001_initial_schema"
+
+
+async def verify_database_schema(
+    engine: AsyncEngine, expected_revision: str = EXPECTED_ALEMBIC_REVISION
+) -> None:
+    """Verify that the database schema is initialized and matches expected revision (TM-07.3)."""
+    async with engine.connect() as conn:
+        try:
+            result = await conn.execute(text("SELECT version_num FROM alembic_version;"))
+            row = result.scalar_one_or_none()
+            if row != expected_revision:
+                raise RuntimeError(
+                    f"Database schema mismatch: current revision '{row}' != expected '{expected_revision}'. "
+                    "Run 'alembic upgrade head' before starting the application."
+                )
+        except Exception as exc:
+            if isinstance(exc, RuntimeError):
+                raise
+            raise RuntimeError(
+                f"Database schema uninitialized or missing 'alembic_version' table. "
+                f"Expected revision '{expected_revision}'. Run 'alembic upgrade head' before starting."
+            ) from exc
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -32,6 +58,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine = create_database_engine(settings)
         app.state.engine = engine
         app.state.session_factory = create_session_factory(engine)
+    await verify_database_schema(engine)
     yield
     if hasattr(app.state, "engine") and app.state.engine:
         await app.state.engine.dispose()

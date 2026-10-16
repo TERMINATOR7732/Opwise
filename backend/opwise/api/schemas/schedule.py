@@ -64,6 +64,15 @@ class ScheduleTelemetryResponse(BaseModel):
     termination_reason: str = ""
 
 
+class StageTelemetryResponse(BaseModel):
+    """Telemetry outcome for an individual lexicographic solve stage."""
+
+    status: str | None = None
+    objective_value: int | None = None
+    best_bound: int | None = None
+    wall_clock_seconds: float | None = None
+
+
 class VerificationReportResponse(BaseModel):
     """Clean-room independent verifier audit report."""
 
@@ -81,6 +90,8 @@ class OptimizeResponseData(BaseModel):
     objective_type: str
     solver_status: str
     verification_status: str
+    stage1_telemetry: StageTelemetryResponse | None = None
+    stage2_telemetry: StageTelemetryResponse | None = None
     metrics: ScheduleMetricsResponse
     solver_telemetry: ScheduleTelemetryResponse | None = None
     verification_report: VerificationReportResponse | None = None
@@ -112,6 +123,8 @@ class ScheduleDetailResponse(BaseModel):
     objective_type: str
     solver_status: str
     verification_status: str
+    stage1_telemetry: StageTelemetryResponse | None = None
+    stage2_telemetry: StageTelemetryResponse | None = None
     metrics: ScheduleMetricsResponse
     solver_telemetry: ScheduleTelemetryResponse | None = None
     scheduled_operations: list[ScheduledOperationResponse] = Field(default_factory=list)
