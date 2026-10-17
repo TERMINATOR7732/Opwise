@@ -200,6 +200,11 @@ export interface VerificationReportResponse {
   violations: string[];
 }
 
+export interface ScheduleMachineResponse {
+  id: string;
+  name: string;
+}
+
 export interface OptimizeResponseData {
   schedule_id: string;
   name: string;
@@ -212,6 +217,8 @@ export interface OptimizeResponseData {
   solver_telemetry?: ScheduleTelemetryResponse | null;
   verification_report?: VerificationReportResponse | null;
   scheduled_operations: ScheduledOperationResponse[];
+  downtimes?: DowntimeResponse[];
+  machines?: ScheduleMachineResponse[];
 }
 
 export interface ScheduleDetailResponse {
@@ -226,5 +233,7 @@ export interface ScheduleDetailResponse {
   metrics: ScheduleMetricsResponse;
   solver_telemetry?: ScheduleTelemetryResponse | null;
   scheduled_operations: ScheduledOperationResponse[];
+  downtimes?: DowntimeResponse[];
+  machines?: ScheduleMachineResponse[];
   created_at: string;
 }

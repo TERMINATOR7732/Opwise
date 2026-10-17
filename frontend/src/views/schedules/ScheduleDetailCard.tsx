@@ -9,6 +9,8 @@ import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { apiEndpoints } from '../../api/endpoints';
 import { ScheduleDetailResponse, VerificationReportResponse } from '../../types/api';
+import { GanttChart } from './gantt/GanttChart';
+
 
 export interface ScheduleDetailCardProps {
   schedule: ScheduleDetailResponse;
@@ -141,10 +143,23 @@ export function ScheduleDetailCard({ schedule, workspaceId, onClose }: ScheduleD
       subtitle={`ID: ${schedule.id} | Mode: ${schedule.objective_type} | Generated: ${new Date(schedule.created_at).toLocaleString()}`}
       actions={<Button variant="secondary" size="sm" onClick={onClose}>Close Details</Button>}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <ScheduleMetricsTiles s={schedule} />
         <OnDemandVerifier workspaceId={workspaceId} scheduleId={schedule.id} initialStatus={schedule.verification_status} />
-        <div>
+
+        {/* Interactive Gantt Timeline */}
+        <GanttChart
+          scheduleId={schedule.id}
+          scheduleName={schedule.name}
+          solverStatus={schedule.solver_status}
+          verificationStatus={schedule.verification_status}
+          makespanMinutes={schedule.metrics.makespan_minutes}
+          operations={schedule.scheduled_operations}
+          downtimes={schedule.downtimes}
+          machines={schedule.machines}
+        />
+
+        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
           <strong style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
             Allocated Operation Sequence ({schedule.scheduled_operations.length} steps)
           </strong>

@@ -7,6 +7,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from opwise.api.schemas.factory import DowntimeResponse
+
 
 class OptimizeParameters(BaseModel):
     """Solver control parameters."""
@@ -82,6 +84,13 @@ class VerificationReportResponse(BaseModel):
     violations: list[str] = Field(default_factory=list)
 
 
+class ScheduleMachineResponse(BaseModel):
+    """Machine representation in schedule snapshot."""
+
+    id: str
+    name: str
+
+
 class OptimizeResponseData(BaseModel):
     """Complete response payload for optimization submission."""
 
@@ -96,6 +105,8 @@ class OptimizeResponseData(BaseModel):
     solver_telemetry: ScheduleTelemetryResponse | None = None
     verification_report: VerificationReportResponse | None = None
     scheduled_operations: list[ScheduledOperationResponse] = Field(default_factory=list)
+    downtimes: list[DowntimeResponse] = Field(default_factory=list)
+    machines: list[ScheduleMachineResponse] = Field(default_factory=list)
 
 
 class ScheduleSummaryResponse(BaseModel):
@@ -128,4 +139,6 @@ class ScheduleDetailResponse(BaseModel):
     metrics: ScheduleMetricsResponse
     solver_telemetry: ScheduleTelemetryResponse | None = None
     scheduled_operations: list[ScheduledOperationResponse] = Field(default_factory=list)
+    downtimes: list[DowntimeResponse] = Field(default_factory=list)
+    machines: list[ScheduleMachineResponse] = Field(default_factory=list)
     created_at: datetime

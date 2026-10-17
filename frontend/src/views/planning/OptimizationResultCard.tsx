@@ -8,6 +8,8 @@ import { Card } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { OptimizeResponseData, ScheduledOperationResponse, StageTelemetryResponse } from '../../types/api';
+import { GanttChart } from '../schedules/gantt/GanttChart';
+
 
 export interface OptimizationResultCardProps {
   result: OptimizeResponseData;
@@ -177,6 +179,18 @@ export function OptimizationResultCard({ result, onViewSchedules }: Optimization
           </div>
         )}
         <VerifierReportBlock result={result} />
+        {result.scheduled_operations.length > 0 && (
+          <GanttChart
+            scheduleId={result.schedule_id}
+            scheduleName={result.name}
+            solverStatus={result.solver_status}
+            verificationStatus={result.verification_status}
+            makespanMinutes={result.metrics.makespan_minutes}
+            operations={result.scheduled_operations}
+            downtimes={result.downtimes}
+            machines={result.machines}
+          />
+        )}
         <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowOps(!showOps)} style={{ fontSize: '0.75rem', marginBottom: showOps ? '0.5rem' : 0 }}>
             {showOps ? '▲ Hide Operation Schedule Table' : `▼ Inspect Operation Allocations (${result.scheduled_operations.length} steps)`}
@@ -185,5 +199,6 @@ export function OptimizationResultCard({ result, onViewSchedules }: Optimization
         </div>
       </div>
     </Card>
+
   );
 }

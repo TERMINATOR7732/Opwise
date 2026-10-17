@@ -91,3 +91,23 @@ def reconstruct_factory_from_snapshot(workspace_id: str, snapshot_str: str) -> F
         return Factory(workspace_id=workspace_id, machines=machines, downtimes=downtimes, orders=orders)
     except Exception:
         return None
+
+
+def extract_snapshot_overview(snapshot_str: str) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
+    """Extract machine descriptors and downtime intervals from snapshot JSON string."""
+    try:
+        data = json.loads(snapshot_str)
+        machines = [{"id": str(m["id"]), "name": str(m.get("name", m["id"]))} for m in data.get("machines", [])]
+        downtimes = [
+            {
+                "id": str(dt["id"]),
+                "machine_id": str(dt["machine_id"]),
+                "start": int(dt["start"]),
+                "end": int(dt["end"]),
+                "reason": dt.get("reason"),
+            }
+            for dt in data.get("downtimes", [])
+        ]
+        return machines, downtimes
+    except Exception:
+        return [], []

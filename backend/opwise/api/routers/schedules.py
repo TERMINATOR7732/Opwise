@@ -7,9 +7,11 @@ from fastapi import APIRouter
 
 from opwise.api.dependencies import OptimizationServiceDep, ScheduleRepoDep, WorkspaceRepoDep
 from opwise.api.schemas.common import SuccessEnvelope
+from opwise.api.schemas.factory import DowntimeResponse
 from opwise.api.schemas.schedule import (
     ScheduleDetailResponse,
     ScheduledOperationResponse,
+    ScheduleMachineResponse,
     ScheduleMetricsResponse,
     ScheduleSummaryResponse,
     ScheduleTelemetryResponse,
@@ -18,8 +20,38 @@ from opwise.api.schemas.schedule import (
 )
 from opwise.domain.exceptions import ResourceNotFoundError
 from opwise.persistence.models import ScheduleModel
+from opwise.services.snapshot import extract_snapshot_overview
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/schedules", tags=["schedules"])
+
+
+def _extract_snapshot_data(
+    snapshot_json: str,
+) -> tuple[list[ScheduleMachineResponse], list[DowntimeResponse]]:
+    """Extract machine descriptors and downtime intervals from stored snapshot JSON."""
+    raw_m, raw_dt = extract_snapshot_overview(snapshot_json)
+    machines = [ScheduleMachineResponse(id=m["id"], name=m["name"]) for m in raw_m]
+    downtimes = [
+        DowntimeResponse(
+            id=dt["id"],
+            machine_id=dt["machine_id"],
+            start_minute=dt["start"],
+            end_minute=dt["end"],
+            reason=dt.get("reason"),
+        )
+        for dt in raw_dt
+    ]
+    return machines, downtimes
+
+
+
+def _build_stage_telemetry(
+    status: str | None, val: int | None, bound: int | None, secs: float | None
+) -> StageTelemetryResponse | None:
+    """Construct StageTelemetryResponse if status is present."""
+    if status is None:
+        return None
+    return StageTelemetryResponse(status=status, objective_value=val, best_bound=bound, wall_clock_seconds=secs)
 
 
 def _build_schedule_detail(m: ScheduleModel) -> ScheduleDetailResponse:
@@ -37,40 +69,7 @@ def _build_schedule_detail(m: ScheduleModel) -> ScheduleDetailResponse:
         )
         for op in m.scheduled_operations
     ]
-    metrics = ScheduleMetricsResponse(
-        makespan_minutes=m.makespan_minutes,
-        weighted_tardiness=m.weighted_tardiness,
-        late_order_count=m.late_order_count,
-        on_time_rate=m.on_time_rate,
-        objective_value=m.objective_value,
-        best_objective_bound=m.best_objective_bound,
-        optimality_gap=m.optimality_gap,
-    )
-    telem = ScheduleTelemetryResponse(
-        wall_clock_time_seconds=m.solver_wall_clock_seconds,
-        deterministic_time=m.solver_deterministic_time,
-        termination_reason=f"SOLVER_STATUS_{m.solver_status}",
-    )
-    st1 = (
-        StageTelemetryResponse(
-            status=m.stage1_status,
-            objective_value=m.stage1_objective_value,
-            best_bound=m.stage1_best_bound,
-            wall_clock_seconds=m.stage1_wall_clock_seconds,
-        )
-        if m.stage1_status is not None
-        else None
-    )
-    st2 = (
-        StageTelemetryResponse(
-            status=m.stage2_status,
-            objective_value=m.stage2_objective_value,
-            best_bound=m.stage2_best_bound,
-            wall_clock_seconds=m.stage2_wall_clock_seconds,
-        )
-        if m.stage2_status is not None
-        else None
-    )
+    machines, downtimes = _extract_snapshot_data(m.input_snapshot_json)
     return ScheduleDetailResponse(
         id=m.id,
         workspace_id=m.workspace_id,
@@ -78,13 +77,32 @@ def _build_schedule_detail(m: ScheduleModel) -> ScheduleDetailResponse:
         objective_type=m.objective_type,
         solver_status=m.solver_status,
         verification_status=m.verification_status,
-        stage1_telemetry=st1,
-        stage2_telemetry=st2,
-        metrics=metrics,
-        solver_telemetry=telem,
+        stage1_telemetry=_build_stage_telemetry(
+            m.stage1_status, m.stage1_objective_value, m.stage1_best_bound, m.stage1_wall_clock_seconds
+        ),
+        stage2_telemetry=_build_stage_telemetry(
+            m.stage2_status, m.stage2_objective_value, m.stage2_best_bound, m.stage2_wall_clock_seconds
+        ),
+        metrics=ScheduleMetricsResponse(
+            makespan_minutes=m.makespan_minutes,
+            weighted_tardiness=m.weighted_tardiness,
+            late_order_count=m.late_order_count,
+            on_time_rate=m.on_time_rate,
+            objective_value=m.objective_value,
+            best_objective_bound=m.best_objective_bound,
+            optimality_gap=m.optimality_gap,
+        ),
+        solver_telemetry=ScheduleTelemetryResponse(
+            wall_clock_time_seconds=m.solver_wall_clock_seconds,
+            deterministic_time=m.solver_deterministic_time,
+            termination_reason=f"SOLVER_STATUS_{m.solver_status}",
+        ),
         scheduled_operations=ops,
+        downtimes=downtimes,
+        machines=machines,
         created_at=m.created_at,
     )
+
 
 
 @router.get("", response_model=SuccessEnvelope[list[ScheduleSummaryResponse]])

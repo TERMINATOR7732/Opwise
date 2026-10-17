@@ -9,10 +9,12 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from opwise.api.schemas.factory import DowntimeResponse
 from opwise.api.schemas.schedule import (
     OptimizeRequest,
     OptimizeResponseData,
     ScheduledOperationResponse,
+    ScheduleMachineResponse,
     ScheduleMetricsResponse,
     ScheduleTelemetryResponse,
     StageTelemetryResponse,
@@ -33,11 +35,34 @@ from opwise.domain.metrics import calculate_schedule_metrics
 from opwise.domain.metrics_types import ProductionScheduleMetrics
 from opwise.persistence.models import ScheduleModel
 from opwise.persistence.repository import FactoryRepository, ScheduleRepository, WorkspaceRepository
-from opwise.services.snapshot import reconstruct_factory_from_snapshot, serialize_factory_snapshot
+from opwise.services.snapshot import (
+    extract_snapshot_overview,
+    reconstruct_factory_from_snapshot,
+    serialize_factory_snapshot,
+)
 from opwise.solver.engine import CPSATScheduler
 from opwise.solver.solver_types import SolverConfig, SolverResult
 from opwise.verifier.independent_verifier import ScheduleVerifier
 from opwise.verifier.verification_types import VerificationReport
+
+
+def _extract_response_snapshot_elements(
+    snapshot_json: str,
+) -> tuple[list[ScheduleMachineResponse], list[DowntimeResponse]]:
+    """Convert snapshot data into response machine and downtime schemas."""
+    raw_m, raw_dt = extract_snapshot_overview(snapshot_json)
+    machines = [ScheduleMachineResponse(id=m["id"], name=m["name"]) for m in raw_m]
+    downtimes = [
+        DowntimeResponse(
+            id=dt["id"],
+            machine_id=dt["machine_id"],
+            start_minute=dt["start"],
+            end_minute=dt["end"],
+            reason=dt.get("reason"),
+        )
+        for dt in raw_dt
+    ]
+    return machines, downtimes
 
 
 class OptimizationService:
@@ -247,12 +272,6 @@ class OptimizationService:
             )
             for op in sched.scheduled_operations
         ]
-        metrics_resp = self._build_metrics_response(metrics, result)
-        telem_resp = ScheduleTelemetryResponse(
-            wall_clock_time_seconds=result.wall_clock_seconds,
-            deterministic_time=result.deterministic_time,
-            termination_reason=f"SOLVER_STATUS_{result.status.value}",
-        )
         verif_resp = (
             VerificationReportResponse(
                 is_valid=v_rep.is_valid,
@@ -264,6 +283,7 @@ class OptimizationService:
             else None
         )
         st1, st2 = self._build_stage_telemetry_responses(result)
+        machines, downtimes = _extract_response_snapshot_elements(saved_model.input_snapshot_json)
         return OptimizeResponseData(
             schedule_id=saved_model.id,
             name=saved_model.name,
@@ -272,11 +292,18 @@ class OptimizationService:
             verification_status=saved_model.verification_status,
             stage1_telemetry=st1,
             stage2_telemetry=st2,
-            metrics=metrics_resp,
-            solver_telemetry=telem_resp,
+            metrics=self._build_metrics_response(metrics, result),
+            solver_telemetry=ScheduleTelemetryResponse(
+                wall_clock_time_seconds=result.wall_clock_seconds,
+                deterministic_time=result.deterministic_time,
+                termination_reason=f"SOLVER_STATUS_{result.status.value}",
+            ),
             verification_report=verif_resp,
             scheduled_operations=ops_resp,
+            downtimes=downtimes,
+            machines=machines,
         )
+
 
     async def verify_schedule(self, workspace_id: str, schedule_id: str) -> VerificationReportResponse:
         """Run on-demand clean-room verification against a stored schedule."""

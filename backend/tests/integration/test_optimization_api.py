@@ -147,10 +147,16 @@ async def test_optimize_valid_factory_and_schedule_lifecycle(app_with_db: FastAP
         assert list_resp.status_code == 200
         assert len(list_resp.json()["data"]) == 1
 
-        # 3. Get schedule detail
+        # 3. Get schedule detail (including Gantt machine & downtime snapshots)
         detail_resp = await client.get(f"/api/v1/workspaces/{ws_id}/schedules/{schedule_id}")
         assert detail_resp.status_code == 200
-        assert len(detail_resp.json()["data"]["scheduled_operations"]) == 3
+        detail_data = detail_resp.json()["data"]
+        assert len(detail_data["scheduled_operations"]) == 3
+        assert len(detail_data["machines"]) == 2
+        assert len(detail_data["downtimes"]) == 1
+        assert detail_data["downtimes"][0]["start_minute"] == 30
+        assert detail_data["downtimes"][0]["end_minute"] == 50
+
 
         # 4. Trigger on-demand independent verification
         verif_resp = await client.post(f"/api/v1/workspaces/{ws_id}/schedules/{schedule_id}/verify")
