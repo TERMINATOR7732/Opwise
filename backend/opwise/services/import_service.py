@@ -28,7 +28,7 @@ from opwise.domain.entities import MachineDowntime
 from opwise.domain.exceptions import DataExchangeError, ResourceNotFoundError
 from opwise.io.csv_parser import parse_csv_zip_archive
 from opwise.io.excel_parser import parse_excel_workbook
-from opwise.io.parsing_types import ParsedFactoryData, RowError
+from opwise.io.parsing_types import ParsedFactoryData, ParsedOperation, RowError
 from opwise.persistence.import_repository import ImportJobRepository
 from opwise.persistence.repository import WorkspaceRepository
 from opwise.services.factory_service import FactoryService
@@ -79,7 +79,7 @@ def _validate_cross_table_references(parsed: ParsedFactoryData) -> None:
 
 def _validate_operation_sequences(parsed: ParsedFactoryData) -> None:
     """Validate that every order has contiguous 1..N operation sequences."""
-    ops_by_order: dict[str, list] = defaultdict(list)
+    ops_by_order: dict[str, list[ParsedOperation]] = defaultdict(list)
     for op in parsed.operations:
         ops_by_order[op.order_id].append(op)
 

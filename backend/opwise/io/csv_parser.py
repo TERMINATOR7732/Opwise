@@ -62,7 +62,7 @@ def _parse_int_field(
     return iv
 
 
-def _parse_machines_csv(reader: csv.DictReader, errors: list[RowError]) -> list[ParsedMachine]:
+def _parse_machines_csv(reader: csv.DictReader[str], errors: list[RowError]) -> list[ParsedMachine]:
     """Parse machines.csv rows."""
     machines: list[ParsedMachine] = []
     sheet = "machines.csv"
@@ -82,7 +82,7 @@ def _parse_machines_csv(reader: csv.DictReader, errors: list[RowError]) -> list[
     return machines
 
 
-def _parse_orders_csv(reader: csv.DictReader, errors: list[RowError]) -> list[ParsedOrder]:
+def _parse_orders_csv(reader: csv.DictReader[str], errors: list[RowError]) -> list[ParsedOrder]:
     """Parse orders.csv rows."""
     orders: list[ParsedOrder] = []
     sheet = "orders.csv"
@@ -105,7 +105,7 @@ def _parse_orders_csv(reader: csv.DictReader, errors: list[RowError]) -> list[Pa
     return orders
 
 
-def _parse_operations_csv(reader: csv.DictReader, errors: list[RowError]) -> list[ParsedOperation]:
+def _parse_operations_csv(reader: csv.DictReader[str], errors: list[RowError]) -> list[ParsedOperation]:
     """Parse operations.csv rows."""
     operations: list[ParsedOperation] = []
     sheet = "operations.csv"
@@ -140,7 +140,7 @@ def _parse_operations_csv(reader: csv.DictReader, errors: list[RowError]) -> lis
     return operations
 
 
-def _parse_downtimes_csv(reader: csv.DictReader, errors: list[RowError]) -> list[ParsedDowntime]:
+def _parse_downtimes_csv(reader: csv.DictReader[str], errors: list[RowError]) -> list[ParsedDowntime]:
     """Parse downtimes.csv rows."""
     downtimes: list[ParsedDowntime] = []
     sheet = "downtimes.csv"

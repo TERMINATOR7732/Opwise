@@ -6,7 +6,7 @@ Governed by DATA_AND_API.md Section 3.2 (GET /templates/{format}) and Section 4.
 import io
 import zipfile
 
-import openpyxl  # type: ignore[import-untyped]
+import openpyxl
 
 SAMPLE_MACHINES_CSV = """machine_id,name
 M1,CNC Milling Center 1

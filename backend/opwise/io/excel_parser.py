@@ -8,7 +8,7 @@ with XML security validation, formula detection, and row-level error reporting.
 import io
 from typing import Any
 
-import openpyxl  # type: ignore[import-untyped]
+import openpyxl
 
 from opwise.io.parsing_types import (
     ParsedDowntime,
