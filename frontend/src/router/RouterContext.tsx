@@ -32,6 +32,9 @@ export function parseRouteFromHash(hash: string): AppRoute {
   if (cleanHash === 'scenarios' || cleanHash === 'scenario') {
     return 'scenarios';
   }
+  if (cleanHash === 'reports' || cleanHash === 'report') {
+    return 'reports';
+  }
   return 'not-found';
 }
 

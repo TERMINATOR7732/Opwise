@@ -3,7 +3,7 @@
  * Governed by DATA_AND_API.md Section 3.2
  */
 
-import { api } from './client';
+import { api, downloadFile } from './client';
 import {
   CreateWorkspaceRequest,
   FactoryConfigPayload,
@@ -24,6 +24,7 @@ import {
   ScenarioReoptimizeRequest,
   ScenarioResponse,
 } from '../types/scenarios';
+import { ScheduleReportResponse } from '../types/reports';
 
 
 export const apiEndpoints = {
@@ -98,4 +99,22 @@ export const apiEndpoints = {
   /** Compare baseline schedule with scenario recovery schedule */
   compareSchedules: (workspaceId: string, req: ScenarioCompareRequest): Promise<ScenarioComparisonResponse> =>
     api.post<ScenarioComparisonResponse>(`/workspaces/${workspaceId}/scenarios/compare`, req),
+
+  /** Get comprehensive schedule report and metrics breakdown */
+  getScheduleReport: (workspaceId: string, scheduleId: string): Promise<ScheduleReportResponse> =>
+    api.get<ScheduleReportResponse>(`/workspaces/${workspaceId}/schedules/${scheduleId}/report`),
+
+  /** Trigger one-click download of schedule CSV or JSON report */
+  downloadScheduleExport: (workspaceId: string, scheduleId: string, format: 'csv' | 'json'): Promise<void> =>
+    downloadFile(
+      `/workspaces/${workspaceId}/schedules/${scheduleId}/export?format=${format}`,
+      `schedule_${scheduleId}_report.${format}`
+    ),
+
+  /** Trigger one-click download of scenario CSV or JSON export */
+  downloadScenarioExport: (workspaceId: string, scenarioId: string, format: 'csv' | 'json'): Promise<void> =>
+    downloadFile(
+      `/workspaces/${workspaceId}/scenarios/${scenarioId}/export?format=${format}`,
+      `scenario_${scenarioId}_export.${format}`
+    ),
 };

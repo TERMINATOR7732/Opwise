@@ -118,3 +118,30 @@ export const api = {
     }),
   delete: <T>(path: string, options?: RequestInit) => request<T>(path, { ...options, method: 'DELETE' }),
 };
+
+export async function downloadFile(path: string, defaultFilename: string): Promise<void> {
+  const baseUrl = getApiBaseUrl();
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const fullUrl = `${baseUrl}${normalizedPath}`;
+  const response = await fetch(fullUrl);
+  if (!response.ok) {
+    throw new ApiClientError('DOWNLOAD_FAILED', `Download failed with HTTP ${response.status}`, response.status);
+  }
+  const blob = await response.blob();
+  const disposition = response.headers.get('content-disposition');
+  let filename = defaultFilename;
+  if (disposition) {
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    if (match && match[1]) {
+      filename = match[1];
+    }
+  }
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}

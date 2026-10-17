@@ -14,8 +14,10 @@ from opwise.persistence.repository import (
     ScheduleRepository,
     WorkspaceRepository,
 )
+from opwise.services.export_service import ExportService
 from opwise.services.factory_service import FactoryService
 from opwise.services.optimization_service import OptimizationService
+from opwise.services.report_service import ReportService
 from opwise.services.scenario_service import ScenarioService
 
 
@@ -63,9 +65,21 @@ def get_scenario_service(session: DbSessionDep) -> ScenarioService:
     return ScenarioService(session)
 
 
+def get_report_service(session: DbSessionDep) -> ReportService:
+    """Dependency providing ReportService."""
+    return ReportService(session)
+
+
+def get_export_service() -> ExportService:
+    """Dependency providing ExportService."""
+    return ExportService()
+
+
 WorkspaceRepoDep = Annotated[WorkspaceRepository, Depends(get_workspace_repository)]
 FactoryRepoDep = Annotated[FactoryRepository, Depends(get_factory_repository)]
 ScheduleRepoDep = Annotated[ScheduleRepository, Depends(get_schedule_repository)]
 FactoryServiceDep = Annotated[FactoryService, Depends(get_factory_service)]
 OptimizationServiceDep = Annotated[OptimizationService, Depends(get_optimization_service)]
 ScenarioServiceDep = Annotated[ScenarioService, Depends(get_scenario_service)]
+ReportServiceDep = Annotated[ReportService, Depends(get_report_service)]
+ExportServiceDep = Annotated[ExportService, Depends(get_export_service)]

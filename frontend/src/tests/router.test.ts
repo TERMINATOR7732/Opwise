@@ -20,6 +20,8 @@ describe('Router & Route Definitions', () => {
     expect(parseRouteFromHash('#schedule')).toBe('schedules');
     expect(parseRouteFromHash('#scenarios')).toBe('scenarios');
     expect(parseRouteFromHash('#scenario')).toBe('scenarios');
+    expect(parseRouteFromHash('#reports')).toBe('reports');
+    expect(parseRouteFromHash('#report')).toBe('reports');
   });
 
   it('routes unknown hashes to not-found', () => {
@@ -45,5 +47,9 @@ describe('Router & Route Definitions', () => {
     expect(APP_ROUTES.scenarios.isAvailable).toBe(false);
     expect(APP_ROUTES.scenarios.milestone).toBe('Milestone 10');
     expect(APP_ROUTES.scenarios.badge).toBe('M10');
+
+    expect(APP_ROUTES.reports.isAvailable).toBe(false);
+    expect(APP_ROUTES.reports.milestone).toBe('Milestone 11');
+    expect(APP_ROUTES.reports.badge).toBe('M11');
   });
 });

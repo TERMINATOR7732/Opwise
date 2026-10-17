@@ -7,6 +7,7 @@ import { FactoryView } from './views/FactoryView';
 import { PlanningView } from './views/PlanningView';
 import { SchedulesView } from './views/SchedulesView';
 import { ScenariosView } from './views/ScenariosView';
+import { ReportsView } from './views/ReportsView';
 import { NotFoundView } from './views/NotFoundView';
 
 function RouteSwitch(): React.ReactElement {
@@ -23,6 +24,8 @@ function RouteSwitch(): React.ReactElement {
       return <SchedulesView />;
     case 'scenarios':
       return <ScenariosView />;
+    case 'reports':
+      return <ReportsView />;
     case 'not-found':
     default:
       return <NotFoundView />;

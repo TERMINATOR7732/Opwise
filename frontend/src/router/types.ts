@@ -3,7 +3,7 @@
  * Governed by SPECIFICATION.md Section 8.1
  */
 
-export type AppRoute = 'overview' | 'factory' | 'planning' | 'schedules' | 'scenarios' | 'not-found';
+export type AppRoute = 'overview' | 'factory' | 'planning' | 'schedules' | 'scenarios' | 'reports' | 'not-found';
 
 export interface RouteMeta {
   id: AppRoute;
@@ -58,5 +58,14 @@ export const APP_ROUTES: Record<Exclude<AppRoute, 'not-found'>, RouteMeta> = {
     isAvailable: false,
     milestone: 'Milestone 10',
     badge: 'M10',
+  },
+  reports: {
+    id: 'reports',
+    label: 'Reports',
+    hash: '#reports',
+    description: 'Production analytics, machine utilization logs, and sanitized exports',
+    isAvailable: false,
+    milestone: 'Milestone 11',
+    badge: 'M11',
   },
 };
