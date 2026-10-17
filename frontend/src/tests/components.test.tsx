@@ -132,19 +132,21 @@ describe('UI Primitives and Layout Components', () => {
 
     const planningMarkup = renderToStaticMarkup(
       <RouterProvider initialHash="#planning">
-        <PlanningView />
+        <WorkspaceProvider>
+          <PlanningView />
+        </WorkspaceProvider>
       </RouterProvider>
     );
-    expect(planningMarkup).toContain('Optimization Planning Engine');
-    expect(planningMarkup).toContain('Milestone 09 Implementation');
+    expect(planningMarkup).toContain('No Workspace Selected');
 
     const schedulesMarkup = renderToStaticMarkup(
       <RouterProvider initialHash="#schedules">
-        <SchedulesView />
+        <WorkspaceProvider>
+          <SchedulesView />
+        </WorkspaceProvider>
       </RouterProvider>
     );
-    expect(schedulesMarkup).toContain('Production Schedules &amp; Gantt Canvas');
-    expect(schedulesMarkup).toContain('Milestone 09 Implementation');
+    expect(schedulesMarkup).toContain('No Workspace Selected');
 
     const scenariosMarkup = renderToStaticMarkup(
       <RouterProvider initialHash="#scenarios">

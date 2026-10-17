@@ -10,7 +10,11 @@ import {
   FactoryConfigResponse,
   FactoryValidationResponse,
   HealthResponse,
+  OptimizeRequest,
+  OptimizeResponseData,
+  ScheduleDetailResponse,
   ScheduleSummaryResponse,
+  VerificationReportResponse,
   WorkspaceResponse,
 } from '../types/api';
 
@@ -34,6 +38,18 @@ export const apiEndpoints = {
   /** List schedules belonging to a workspace */
   listSchedules: (workspaceId: string): Promise<ScheduleSummaryResponse[]> =>
     api.get<ScheduleSummaryResponse[]>(`/workspaces/${workspaceId}/schedules`),
+
+  /** Get detailed schedule data including operations and solver telemetry */
+  getSchedule: (workspaceId: string, scheduleId: string): Promise<ScheduleDetailResponse> =>
+    api.get<ScheduleDetailResponse>(`/workspaces/${workspaceId}/schedules/${scheduleId}`),
+
+  /** Run on-demand independent clean-room verification for a schedule */
+  verifySchedule: (workspaceId: string, scheduleId: string): Promise<VerificationReportResponse> =>
+    api.post<VerificationReportResponse>(`/workspaces/${workspaceId}/schedules/${scheduleId}/verify`),
+
+  /** Execute synchronous CP-SAT optimization and independent verification */
+  optimizeSchedule: (workspaceId: string, req: OptimizeRequest): Promise<OptimizeResponseData> =>
+    api.post<OptimizeResponseData>(`/workspaces/${workspaceId}/optimize`, req),
 
   /** Fetch complete factory configuration for a workspace */
   getFactory: (workspaceId: string): Promise<FactoryConfigResponse> =>

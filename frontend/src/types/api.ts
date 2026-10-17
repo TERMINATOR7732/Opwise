@@ -142,3 +142,89 @@ export interface FactoryValidationResponse {
   classification: string;
   issues: string[];
 }
+
+export interface OptimizeParameters {
+  primary_objective?: string;
+  secondary_objective?: string | null;
+  primary_time_budget_seconds?: number;
+  secondary_time_budget_seconds?: number;
+  num_workers?: number;
+  random_seed?: number;
+}
+
+export interface OptimizeRequest {
+  name: string;
+  objective_type: string;
+  parameters?: OptimizeParameters;
+}
+
+export interface ScheduledOperationResponse {
+  operation_id: string;
+  order_id: string;
+  sequence_index: number;
+  machine_id: string;
+  start_minute: number;
+  end_minute: number;
+  duration: number;
+  slack_minutes: number;
+}
+
+export interface ScheduleMetricsResponse {
+  makespan_minutes: number;
+  weighted_tardiness: number;
+  late_order_count: number;
+  on_time_rate: number;
+  objective_value?: number | null;
+  best_objective_bound?: number | null;
+  optimality_gap?: number | null;
+}
+
+export interface ScheduleTelemetryResponse {
+  wall_clock_time_seconds: number;
+  deterministic_time?: number | null;
+  user_cpu_time_seconds?: number | null;
+  termination_reason: string;
+}
+
+export interface StageTelemetryResponse {
+  status?: string | null;
+  objective_value?: number | null;
+  best_bound?: number | null;
+  wall_clock_seconds?: number | null;
+}
+
+export interface VerificationReportResponse {
+  is_valid: boolean;
+  checks_run: number;
+  checks_passed: number;
+  violations: string[];
+}
+
+export interface OptimizeResponseData {
+  schedule_id: string;
+  name: string;
+  objective_type: string;
+  solver_status: string;
+  verification_status: string;
+  stage1_telemetry?: StageTelemetryResponse | null;
+  stage2_telemetry?: StageTelemetryResponse | null;
+  metrics: ScheduleMetricsResponse;
+  solver_telemetry?: ScheduleTelemetryResponse | null;
+  verification_report?: VerificationReportResponse | null;
+  scheduled_operations: ScheduledOperationResponse[];
+}
+
+export interface ScheduleDetailResponse {
+  id: string;
+  workspace_id: string;
+  name: string;
+  objective_type: string;
+  solver_status: string;
+  verification_status: string;
+  stage1_telemetry?: StageTelemetryResponse | null;
+  stage2_telemetry?: StageTelemetryResponse | null;
+  metrics: ScheduleMetricsResponse;
+  solver_telemetry?: ScheduleTelemetryResponse | null;
+  scheduled_operations: ScheduledOperationResponse[];
+  created_at: string;
+}
