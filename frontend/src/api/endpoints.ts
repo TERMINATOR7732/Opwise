@@ -10,6 +10,8 @@ import {
   FactoryConfigResponse,
   FactoryValidationResponse,
   HealthResponse,
+  ImportConfirmResponse,
+  ImportPreviewResponse,
   OptimizeRequest,
   OptimizeResponseData,
   ScheduleDetailResponse,
@@ -117,4 +119,19 @@ export const apiEndpoints = {
       `/workspaces/${workspaceId}/scenarios/${scenarioId}/export?format=${format}`,
       `scenario_${scenarioId}_export.${format}`
     ),
+
+  /** Upload CSV/Excel file for preview and validation */
+  previewImport: (workspaceId: string, file: File): Promise<ImportPreviewResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.postForm<ImportPreviewResponse>(`/workspaces/${workspaceId}/import/preview`, formData);
+  },
+
+  /** Confirm and atomically commit staged import job into factory */
+  confirmImport: (workspaceId: string, jobId: string): Promise<ImportConfirmResponse> =>
+    api.post<ImportConfirmResponse>(`/workspaces/${workspaceId}/import/confirm`, { job_id: jobId }),
+
+  /** Download starter template (format: 'csv' | 'xlsx') */
+  downloadTemplate: (format: 'csv' | 'xlsx'): Promise<void> =>
+    downloadFile(`/templates/${format}`, `opwise_factory_template.${format === 'csv' ? 'zip' : 'xlsx'}`),
 };

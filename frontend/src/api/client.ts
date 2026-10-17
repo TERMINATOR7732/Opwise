@@ -9,18 +9,21 @@ export class ApiClientError extends Error {
   public readonly code: string;
   public readonly status: number;
   public readonly details?: ValidationErrorDetail[] | Record<string, unknown> | null;
+  public readonly data?: unknown;
 
   constructor(
     code: string,
     message: string,
     status: number,
-    details?: ValidationErrorDetail[] | Record<string, unknown> | null
+    details?: ValidationErrorDetail[] | Record<string, unknown> | null,
+    data?: unknown
   ) {
     super(message);
     this.name = 'ApiClientError';
     this.code = code;
     this.status = status;
     this.details = details;
+    this.data = data;
   }
 }
 
@@ -31,7 +34,7 @@ export function getApiBaseUrl(): string {
 
 function buildHeaders(options: RequestInit): Headers {
   const headers = new Headers(options.headers);
-  if (!headers.has('Content-Type') && options.body) {
+  if (!headers.has('Content-Type') && options.body && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
   if (!headers.has('Accept')) {
@@ -50,7 +53,8 @@ function handleEnvelopeResult<T>(json: unknown, status: number): T {
       envelope.error.code,
       envelope.error.message,
       status,
-      envelope.error.details
+      envelope.error.details,
+      (json as { data?: unknown }).data
     );
   }
   return json as T;
@@ -115,6 +119,12 @@ export const api = {
       ...options,
       method: 'PUT',
       body: body ? JSON.stringify(body) : undefined,
+    }),
+  postForm: <T>(path: string, formData: FormData, options?: RequestInit) =>
+    request<T>(path, {
+      ...options,
+      method: 'POST',
+      body: formData,
     }),
   delete: <T>(path: string, options?: RequestInit) => request<T>(path, { ...options, method: 'DELETE' }),
 };

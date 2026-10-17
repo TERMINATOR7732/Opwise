@@ -299,6 +299,7 @@ class ImportJobModel(Base):
     """Batch CSV/Excel import tracking entity."""
 
     __tablename__ = "import_jobs"
+    __table_args__ = (Index("ix_import_jobs_workspace_id", "workspace_id"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_generate_uuid)
     workspace_id: Mapped[str] = mapped_column(

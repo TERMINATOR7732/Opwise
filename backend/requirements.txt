@@ -10,3 +10,4 @@ aiosqlite==0.20.0
 alembic==1.14.0
 openpyxl==3.1.5
 ortools==9.11.4210
+python-multipart>=0.0.20

@@ -6,6 +6,7 @@ from opwise.persistence.database import (
     create_session_factory,
     get_db_session,
 )
+from opwise.persistence.import_repository import ImportJobRepository
 from opwise.persistence.models import (
     ImportJobModel,
     MachineDowntimeModel,
@@ -22,6 +23,7 @@ from opwise.persistence.models import (
 __all__ = [
     "Base",
     "ImportJobModel",
+    "ImportJobRepository",
     "MachineDowntimeModel",
     "MachineModel",
     "OperationModel",

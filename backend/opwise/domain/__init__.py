@@ -19,6 +19,7 @@ from opwise.domain.entities import (
     ScheduleStatus,
 )
 from opwise.domain.exceptions import (
+    DataExchangeError,
     DomainError,
     EmptyWorkspaceError,
     IntegerOverflowError,
@@ -30,6 +31,7 @@ from opwise.domain.exceptions import (
     OrderWithoutOperationsError,
     ReferentialIntegrityError,
     ResourceNotFoundError,
+    SecurityError,
 )
 from opwise.domain.metrics import (
     BOTTLENECK_DISCLAIMER,
@@ -50,6 +52,7 @@ from opwise.domain.validators import (
 __all__ = [
     "BOTTLENECK_DISCLAIMER",
     "BottleneckAnalysis",
+    "DataExchangeError",
     "DomainError",
     "EmptyWorkspaceError",
     "Factory",
@@ -78,6 +81,7 @@ __all__ = [
     "ScheduleKPIs",
     "ScheduleStatus",
     "ScheduledOperation",
+    "SecurityError",
     "calculate_effective_horizon",
     "calculate_metrics_from_operations",
     "calculate_schedule_metrics",

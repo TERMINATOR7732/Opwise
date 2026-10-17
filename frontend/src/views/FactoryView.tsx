@@ -16,6 +16,7 @@ import { FactoryProvider, useFactory, FactoryContextValue } from '../context/Fac
 import { MachinesTab } from './factory/MachinesTab';
 import { OrdersTab } from './factory/OrdersTab';
 import { FactoryValidationCard } from './factory/FactoryValidationCard';
+import { ImportModal } from './factory/ImportModal';
 
 type FactoryTab = 'machines' | 'orders' | 'validation';
 
@@ -79,6 +80,7 @@ function FactoryInnerView(): React.ReactElement {
   const { activeWorkspace } = useWorkspace();
   const { navigate } = useRouter();
   const [tab, setTab] = useState<FactoryTab>('machines');
+  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const ctx = useFactory();
 
   if (!activeWorkspace) {
@@ -98,9 +100,16 @@ function FactoryInnerView(): React.ReactElement {
         description={`Workspace: ${activeWorkspace.name} — Real-time persistence backed by local SQLite WAL and Google OR-Tools CP-SAT domain model.`}
         badge={<Badge variant="optimal">Milestone 09A Active</Badge>}
         actions={
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <Button variant="secondary" size="sm" onClick={() => ctx.loadFactory()} disabled={ctx.status === 'loading'}>Refresh Data</Button>
-            <Button variant="secondary" size="sm" onClick={() => navigate('overview')}>← Overview</Button>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <Button variant="secondary" size="sm" onClick={() => setIsImportModalOpen(true)}>
+              📁 Import CSV/Excel
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => ctx.loadFactory()} disabled={ctx.status === 'loading'}>
+              Refresh Data
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => navigate('overview')}>
+              ← Overview
+            </Button>
           </div>
         }
       />
@@ -113,6 +122,14 @@ function FactoryInnerView(): React.ReactElement {
           <FactoryTabPanels tab={tab} ctx={ctx} />
         </>
       ) : null}
+      <ImportModal
+        isOpen={isImportModalOpen}
+        workspaceId={activeWorkspace.id}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={async () => {
+          await ctx.loadFactory();
+        }}
+      />
     </div>
   );
 }

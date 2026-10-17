@@ -107,3 +107,18 @@ class ResourceNotFoundError(OpwiseError):
         self.resource_type = resource_type
         self.resource_id = resource_id
 
+
+class SecurityError(OpwiseError):
+    """Raised when an uploaded file or parameter violates security bounds (XXE, traversal, zip bombs)."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message=message, error_code="SECURITY_VIOLATION", status_code=400)
+
+
+class DataExchangeError(OpwiseError):
+    """Raised when import/export data structure or format is invalid."""
+
+    def __init__(self, message: str, status_code: int = 400) -> None:
+        super().__init__(message=message, error_code="INVALID_DATA_EXCHANGE", status_code=status_code)
+
+

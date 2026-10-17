@@ -237,3 +237,42 @@ export interface ScheduleDetailResponse {
   machines?: ScheduleMachineResponse[];
   created_at: string;
 }
+
+export interface ImportRowError {
+  sheet: string;
+  row: number;
+  column: string;
+  value: string;
+  issue: string;
+}
+
+export interface ImportSummary {
+  machine_count: number;
+  order_count: number;
+  operation_count: number;
+  downtime_count: number;
+}
+
+export interface ImportStagedData {
+  machines: MachineCreate[];
+  orders: OrderCreate[];
+  downtimes: DowntimeCreate[];
+}
+
+export interface ImportPreviewResponse {
+  job_id: string | null;
+  filename: string;
+  status: string;
+  is_valid: boolean;
+  summary?: ImportSummary | null;
+  warnings?: string[];
+  staged_data?: ImportStagedData | null;
+  errors?: ImportRowError[];
+}
+
+export interface ImportConfirmResponse {
+  job_id: string;
+  status: string;
+  message: string;
+  factory: FactoryConfigResponse;
+}

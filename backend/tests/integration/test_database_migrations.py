@@ -171,7 +171,7 @@ async def test_startup_migration_mismatch_aborts() -> None:
 
         # 1. verify_database_schema directly on unmigrated database raises RuntimeError
         with pytest.raises(RuntimeError) as exc_info:
-            await verify_database_schema(engine, expected_revision="001_initial_schema")
+            await verify_database_schema(engine, expected_revision="002_add_import_jobs_index")
         assert "alembic upgrade head" in str(exc_info.value).lower()
 
         # 2. verify lifespan startup on unmigrated database raises RuntimeError
@@ -181,6 +181,61 @@ async def test_startup_migration_mismatch_aborts() -> None:
                 pass
 
         await engine.dispose()
+    finally:
+        if os.path.exists(temp_db):
+            os.remove(temp_db)
+
+
+@pytest.mark.asyncio
+async def test_migration_from_prior_schema_to_head() -> None:
+    """Verify upgrade from prior schema (001) to new schema (002) and index creation."""
+    with tempfile.NamedTemporaryFile(suffix=".sqlite3", delete=False) as f:
+        temp_db = f.name
+
+    try:
+        cfg = _get_alembic_config(temp_db)
+        # 1. Migrate to prior revision (001_initial_schema)
+        command.upgrade(cfg, "001_initial_schema")
+
+        settings = Settings(db_url=f"sqlite+aiosqlite:///{temp_db}")
+        engine = create_database_engine(settings)
+
+        # Verify prior revision schema
+        async with engine.connect() as conn:
+            res = await conn.execute(text("SELECT version_num FROM alembic_version;"))
+            assert res.scalar_one() == "001_initial_schema"
+            # Prior schema should not have ix_import_jobs_workspace_id
+            idx_res = await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='index' AND name='ix_import_jobs_workspace_id';")
+            )
+            assert idx_res.scalar_one_or_none() is None
+
+        await engine.dispose()
+
+        # 2. Upgrade from prior schema to head (002_add_import_jobs_index)
+        command.upgrade(cfg, "head")
+
+        engine = create_database_engine(settings)
+        async with engine.connect() as conn:
+            res = await conn.execute(text("SELECT version_num FROM alembic_version;"))
+            assert res.scalar_one() == "002_add_import_jobs_index"
+            idx_res = await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='index' AND name='ix_import_jobs_workspace_id';")
+            )
+            assert idx_res.scalar_one() == "ix_import_jobs_workspace_id"
+
+        await engine.dispose()
+
+        # 3. Test downgrade back to 001_initial_schema
+        command.downgrade(cfg, "001_initial_schema")
+        engine = create_database_engine(settings)
+        async with engine.connect() as conn:
+            res = await conn.execute(text("SELECT version_num FROM alembic_version;"))
+            assert res.scalar_one() == "001_initial_schema"
+        await engine.dispose()
+
+        # 4. Final upgrade to head
+        command.upgrade(cfg, "head")
     finally:
         if os.path.exists(temp_db):
             os.remove(temp_db)

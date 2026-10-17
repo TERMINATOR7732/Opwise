@@ -20,6 +20,15 @@ from opwise.api.schemas.factory import (
     OrderCreate,
     OrderResponse,
 )
+from opwise.api.schemas.import_job import (
+    ImportConfirmRequest,
+    ImportConfirmResponse,
+    ImportJobDetailResponse,
+    ImportPreviewResponse,
+    ImportRowError,
+    ImportStagedData,
+    ImportSummary,
+)
 from opwise.api.schemas.schedule import (
     OptimizeParameters,
     OptimizeRequest,
@@ -45,6 +54,13 @@ __all__ = [
     "FactoryConfigPayload",
     "FactoryConfigResponse",
     "FactoryValidationResponse",
+    "ImportConfirmRequest",
+    "ImportConfirmResponse",
+    "ImportJobDetailResponse",
+    "ImportPreviewResponse",
+    "ImportRowError",
+    "ImportStagedData",
+    "ImportSummary",
     "MachineCreate",
     "MachineResponse",
     "Metadata",
