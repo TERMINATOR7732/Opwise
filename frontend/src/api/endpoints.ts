@@ -1,6 +1,6 @@
 /**
  * Typed API Endpoints for Opwise v1 Services
- * Governed by DATA_AND_API.md Section 3.2
+ * Governed by DATA_AND_API.md Section 3.2 and SPECIFICATION.md Section 1.1 (Tier 2 Demo Mode).
  */
 
 import { api, downloadFile } from './client';
@@ -27,44 +27,119 @@ import {
   ScenarioResponse,
 } from '../types/scenarios';
 import { ScheduleReportResponse } from '../types/reports';
+import {
+  isDemoMode,
+  getDemoWorkspaces,
+  getDemoFactory,
+  getDemoSchedules,
+  getDemoScheduleDetail,
+  verifyDemoSchedule,
+  getDemoScheduleReport,
+  getDemoScenarios,
+} from '../demo/demoService';
+import { exportDemoScheduleCsv, exportDemoScheduleJson } from '../demo/demoExport';
 
+function createMockOptimizedResponse(workspaceId: string, req: OptimizeRequest): OptimizeResponseData {
+  const detail = getDemoScheduleDetail(workspaceId, '');
+  const ver = verifyDemoSchedule(workspaceId);
+  return {
+    schedule_id: detail.id,
+    name: `${req.name} (${detail.name})`,
+    objective_type: req.objective_type || detail.objective_type,
+    solver_status: detail.solver_status,
+    verification_status: detail.verification_status,
+    metrics: detail.metrics,
+    solver_telemetry: detail.solver_telemetry,
+    verification_report: ver,
+    scheduled_operations: detail.scheduled_operations,
+    downtimes: detail.downtimes,
+    machines: detail.machines,
+  };
+}
+
+function createMockComparisonResponse(workspaceId: string, baselineId: string): ScenarioComparisonResponse {
+  const detail = getDemoScheduleDetail(workspaceId, baselineId);
+  return {
+    id: 'comp-demo-mock',
+    scenario_id: 'scen-demo-compare',
+    baseline_schedule_id: baselineId || detail.id,
+    compared_schedule_id: detail.id,
+    delta_makespan: 0,
+    delta_weighted_tardiness: 0,
+    delta_late_order_count: 0,
+    delta_on_time_rate: 0,
+    objective_diff_detected: false,
+    order_set_diff_detected: false,
+    status_diff_detected: false,
+    time_limit_diff_detected: false,
+    unlike_comparison_warning: null,
+    diverged_operations: [],
+    created_at: detail.created_at,
+  };
+}
 
 export const apiEndpoints = {
   /** Check server and database health status */
-  getHealth: (): Promise<HealthResponse> => api.get<HealthResponse>('/health'),
+  getHealth: (): Promise<HealthResponse> =>
+    isDemoMode()
+      ? Promise.resolve({
+          status: 'healthy',
+          database: 'Standalone Demo Mode (Client-Side)',
+          version: '0.1.0-demo',
+        })
+      : api.get<HealthResponse>('/health'),
 
   /** List all workspaces */
-  listWorkspaces: (): Promise<WorkspaceResponse[]> => api.get<WorkspaceResponse[]>('/workspaces'),
+  listWorkspaces: (): Promise<WorkspaceResponse[]> =>
+    isDemoMode() ? Promise.resolve(getDemoWorkspaces()) : api.get<WorkspaceResponse[]>('/workspaces'),
 
   /** Get single workspace details */
-  getWorkspace: (id: string): Promise<WorkspaceResponse> => api.get<WorkspaceResponse>(`/workspaces/${id}`),
+  getWorkspace: (id: string): Promise<WorkspaceResponse> =>
+    isDemoMode()
+      ? Promise.resolve(getDemoWorkspaces().find((w) => w.id === id) || getDemoWorkspaces()[0])
+      : api.get<WorkspaceResponse>(`/workspaces/${id}`),
 
   /** Create a new workspace */
   createWorkspace: (req: CreateWorkspaceRequest): Promise<WorkspaceResponse> =>
-    api.post<WorkspaceResponse>('/workspaces', req),
+    isDemoMode()
+      ? Promise.resolve({
+          id: `ws-custom-${Date.now()}`,
+          name: req.name,
+          description: req.description || '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+      : api.post<WorkspaceResponse>('/workspaces', req),
 
   /** Delete a workspace and cascade-delete its entities */
-  deleteWorkspace: (id: string): Promise<void> => api.delete<void>(`/workspaces/${id}`),
+  deleteWorkspace: (id: string): Promise<void> =>
+    isDemoMode() ? Promise.resolve() : api.delete<void>(`/workspaces/${id}`),
 
   /** List schedules belonging to a workspace */
   listSchedules: (workspaceId: string): Promise<ScheduleSummaryResponse[]> =>
-    api.get<ScheduleSummaryResponse[]>(`/workspaces/${workspaceId}/schedules`),
+    isDemoMode() ? Promise.resolve(getDemoSchedules(workspaceId)) : api.get<ScheduleSummaryResponse[]>(`/workspaces/${workspaceId}/schedules`),
 
   /** Get detailed schedule data including operations and solver telemetry */
   getSchedule: (workspaceId: string, scheduleId: string): Promise<ScheduleDetailResponse> =>
-    api.get<ScheduleDetailResponse>(`/workspaces/${workspaceId}/schedules/${scheduleId}`),
+    isDemoMode()
+      ? Promise.resolve(getDemoScheduleDetail(workspaceId, scheduleId))
+      : api.get<ScheduleDetailResponse>(`/workspaces/${workspaceId}/schedules/${scheduleId}`),
 
   /** Run on-demand independent clean-room verification for a schedule */
   verifySchedule: (workspaceId: string, scheduleId: string): Promise<VerificationReportResponse> =>
-    api.post<VerificationReportResponse>(`/workspaces/${workspaceId}/schedules/${scheduleId}/verify`),
+    isDemoMode()
+      ? Promise.resolve(verifyDemoSchedule(workspaceId))
+      : api.post<VerificationReportResponse>(`/workspaces/${workspaceId}/schedules/${scheduleId}/verify`),
 
   /** Execute synchronous CP-SAT optimization and independent verification */
   optimizeSchedule: (workspaceId: string, req: OptimizeRequest): Promise<OptimizeResponseData> =>
-    api.post<OptimizeResponseData>(`/workspaces/${workspaceId}/optimize`, req),
+    isDemoMode()
+      ? Promise.resolve(createMockOptimizedResponse(workspaceId, req))
+      : api.post<OptimizeResponseData>(`/workspaces/${workspaceId}/optimize`, req),
 
   /** Fetch complete factory configuration for a workspace */
   getFactory: (workspaceId: string): Promise<FactoryConfigResponse> =>
-    api.get<FactoryConfigResponse>(`/workspaces/${workspaceId}/factory`),
+    isDemoMode() ? Promise.resolve(getDemoFactory(workspaceId)) : api.get<FactoryConfigResponse>(`/workspaces/${workspaceId}/factory`),
 
   /** Atomically replace factory configuration for a workspace */
   replaceFactory: (workspaceId: string, payload: FactoryConfigPayload): Promise<FactoryConfigResponse> =>
@@ -72,11 +147,13 @@ export const apiEndpoints = {
 
   /** Dry-run validation of factory inputs without saving */
   validateFactory: (workspaceId: string, payload: FactoryConfigPayload): Promise<FactoryValidationResponse> =>
-    api.post<FactoryValidationResponse>(`/workspaces/${workspaceId}/factory/validate`, payload),
+    isDemoMode()
+      ? Promise.resolve({ is_valid: true, classification: 'VALID_NON_EMPTY_FACTORY', issues: [] })
+      : api.post<FactoryValidationResponse>(`/workspaces/${workspaceId}/factory/validate`, payload),
 
   /** List disruption scenarios for a workspace */
   listScenarios: (workspaceId: string): Promise<ScenarioResponse[]> =>
-    api.get<ScenarioResponse[]>(`/workspaces/${workspaceId}/scenarios`),
+    isDemoMode() ? Promise.resolve(getDemoScenarios(workspaceId)) : api.get<ScenarioResponse[]>(`/workspaces/${workspaceId}/scenarios`),
 
   /** Get scenario details and reoptimization results */
   getScenario: (workspaceId: string, scenarioId: string): Promise<ScenarioResponse> =>
@@ -94,31 +171,59 @@ export const apiEndpoints = {
   reoptimizeScenario: (
     workspaceId: string,
     scenarioId: string,
-    req?: ScenarioReoptimizeRequest
+    _req?: ScenarioReoptimizeRequest
   ): Promise<ScenarioComparisonResponse> =>
-    api.post<ScenarioComparisonResponse>(`/workspaces/${workspaceId}/scenarios/${scenarioId}/reoptimize`, req),
+    isDemoMode()
+      ? Promise.resolve(createMockComparisonResponse(workspaceId, ''))
+      : api.post<ScenarioComparisonResponse>(`/workspaces/${workspaceId}/scenarios/${scenarioId}/reoptimize`, _req),
 
   /** Compare baseline schedule with scenario recovery schedule */
   compareSchedules: (workspaceId: string, req: ScenarioCompareRequest): Promise<ScenarioComparisonResponse> =>
-    api.post<ScenarioComparisonResponse>(`/workspaces/${workspaceId}/scenarios/compare`, req),
+    isDemoMode()
+      ? Promise.resolve(createMockComparisonResponse(workspaceId, req.baseline_schedule_id))
+      : api.post<ScenarioComparisonResponse>(`/workspaces/${workspaceId}/scenarios/compare`, req),
 
   /** Get comprehensive schedule report and metrics breakdown */
   getScheduleReport: (workspaceId: string, scheduleId: string): Promise<ScheduleReportResponse> =>
-    api.get<ScheduleReportResponse>(`/workspaces/${workspaceId}/schedules/${scheduleId}/report`),
+    isDemoMode()
+      ? Promise.resolve(getDemoScheduleReport(workspaceId))
+      : api.get<ScheduleReportResponse>(`/workspaces/${workspaceId}/schedules/${scheduleId}/report`),
 
   /** Trigger one-click download of schedule CSV or JSON report */
-  downloadScheduleExport: (workspaceId: string, scheduleId: string, format: 'csv' | 'json'): Promise<void> =>
-    downloadFile(
+  downloadScheduleExport: (workspaceId: string, scheduleId: string, format: 'csv' | 'json'): Promise<void> => {
+    if (isDemoMode()) {
+      const detail = getDemoScheduleDetail(workspaceId, scheduleId);
+      if (format === 'csv') {
+        exportDemoScheduleCsv(detail);
+      } else {
+        const rep = getDemoScheduleReport(workspaceId);
+        exportDemoScheduleJson(rep);
+      }
+      return Promise.resolve();
+    }
+    return downloadFile(
       `/workspaces/${workspaceId}/schedules/${scheduleId}/export?format=${format}`,
       `schedule_${scheduleId}_report.${format}`
-    ),
+    );
+  },
 
   /** Trigger one-click download of scenario CSV or JSON export */
-  downloadScenarioExport: (workspaceId: string, scenarioId: string, format: 'csv' | 'json'): Promise<void> =>
-    downloadFile(
+  downloadScenarioExport: (workspaceId: string, scenarioId: string, format: 'csv' | 'json'): Promise<void> => {
+    if (isDemoMode()) {
+      const detail = getDemoScheduleDetail(workspaceId, '');
+      if (format === 'csv') {
+        exportDemoScheduleCsv(detail);
+      } else {
+        const rep = getDemoScheduleReport(workspaceId);
+        exportDemoScheduleJson(rep);
+      }
+      return Promise.resolve();
+    }
+    return downloadFile(
       `/workspaces/${workspaceId}/scenarios/${scenarioId}/export?format=${format}`,
       `scenario_${scenarioId}_export.${format}`
-    ),
+    );
+  },
 
   /** Upload CSV/Excel file for preview and validation */
   previewImport: (workspaceId: string, file: File): Promise<ImportPreviewResponse> => {

@@ -1,0 +1,557 @@
+{
+  "id": "demo-1",
+  "name": "Normal Production (Balanced Shop)",
+  "description": "4 machines, 6 orders, 24 operations. Balanced workloads across milling, turning, grinding, and inspection cells.",
+  "category": "Baseline Operation",
+  "factory": {
+    "workspace_id": "ws-demo-1",
+    "machines": [
+      {
+        "id": "M1",
+        "external_id": "M1",
+        "name": "CNC Milling Station Alpha",
+        "created_at": "2026-10-18T00:00:00Z"
+      },
+      {
+        "id": "M2",
+        "external_id": "M2",
+        "name": "Precision Lathe Beta",
+        "created_at": "2026-10-18T00:00:00Z"
+      },
+      {
+        "id": "M3",
+        "external_id": "M3",
+        "name": "Surface Grinder Gamma",
+        "created_at": "2026-10-18T00:00:00Z"
+      },
+      {
+        "id": "M4",
+        "external_id": "M4",
+        "name": "Assembly & Inspection Delta",
+        "created_at": "2026-10-18T00:00:00Z"
+      }
+    ],
+    "downtimes": [],
+    "orders": [
+      {
+        "id": "ORD-01",
+        "external_id": "ORD-01",
+        "name": "Production Order ORD-01",
+        "release_minute": 0,
+        "due_minute": 120,
+        "tardiness_weight": 2,
+        "operations": [
+          {
+            "id": "ORD-01-OP1",
+            "order_id": "ORD-01",
+            "sequence_index": 1,
+            "machine_id": "M1",
+            "processing_minutes": 15
+          },
+          {
+            "id": "ORD-01-OP2",
+            "order_id": "ORD-01",
+            "sequence_index": 2,
+            "machine_id": "M2",
+            "processing_minutes": 20
+          },
+          {
+            "id": "ORD-01-OP3",
+            "order_id": "ORD-01",
+            "sequence_index": 3,
+            "machine_id": "M3",
+            "processing_minutes": 10
+          },
+          {
+            "id": "ORD-01-OP4",
+            "order_id": "ORD-01",
+            "sequence_index": 4,
+            "machine_id": "M4",
+            "processing_minutes": 15
+          }
+        ]
+      },
+      {
+        "id": "ORD-02",
+        "external_id": "ORD-02",
+        "name": "Production Order ORD-02",
+        "release_minute": 0,
+        "due_minute": 130,
+        "tardiness_weight": 1,
+        "operations": [
+          {
+            "id": "ORD-02-OP1",
+            "order_id": "ORD-02",
+            "sequence_index": 1,
+            "machine_id": "M2",
+            "processing_minutes": 20
+          },
+          {
+            "id": "ORD-02-OP2",
+            "order_id": "ORD-02",
+            "sequence_index": 2,
+            "machine_id": "M3",
+            "processing_minutes": 15
+          },
+          {
+            "id": "ORD-02-OP3",
+            "order_id": "ORD-02",
+            "sequence_index": 3,
+            "machine_id": "M4",
+            "processing_minutes": 15
+          },
+          {
+            "id": "ORD-02-OP4",
+            "order_id": "ORD-02",
+            "sequence_index": 4,
+            "machine_id": "M1",
+            "processing_minutes": 10
+          }
+        ]
+      },
+      {
+        "id": "ORD-03",
+        "external_id": "ORD-03",
+        "name": "Production Order ORD-03",
+        "release_minute": 0,
+        "due_minute": 140,
+        "tardiness_weight": 3,
+        "operations": [
+          {
+            "id": "ORD-03-OP1",
+            "order_id": "ORD-03",
+            "sequence_index": 1,
+            "machine_id": "M3",
+            "processing_minutes": 10
+          },
+          {
+            "id": "ORD-03-OP2",
+            "order_id": "ORD-03",
+            "sequence_index": 2,
+            "machine_id": "M4",
+            "processing_minutes": 25
+          },
+          {
+            "id": "ORD-03-OP3",
+            "order_id": "ORD-03",
+            "sequence_index": 3,
+            "machine_id": "M1",
+            "processing_minutes": 20
+          },
+          {
+            "id": "ORD-03-OP4",
+            "order_id": "ORD-03",
+            "sequence_index": 4,
+            "machine_id": "M2",
+            "processing_minutes": 15
+          }
+        ]
+      },
+      {
+        "id": "ORD-04",
+        "external_id": "ORD-04",
+        "name": "Production Order ORD-04",
+        "release_minute": 0,
+        "due_minute": 150,
+        "tardiness_weight": 1,
+        "operations": [
+          {
+            "id": "ORD-04-OP1",
+            "order_id": "ORD-04",
+            "sequence_index": 1,
+            "machine_id": "M4",
+            "processing_minutes": 15
+          },
+          {
+            "id": "ORD-04-OP2",
+            "order_id": "ORD-04",
+            "sequence_index": 2,
+            "machine_id": "M1",
+            "processing_minutes": 10
+          },
+          {
+            "id": "ORD-04-OP3",
+            "order_id": "ORD-04",
+            "sequence_index": 3,
+            "machine_id": "M2",
+            "processing_minutes": 20
+          },
+          {
+            "id": "ORD-04-OP4",
+            "order_id": "ORD-04",
+            "sequence_index": 4,
+            "machine_id": "M3",
+            "processing_minutes": 25
+          }
+        ]
+      },
+      {
+        "id": "ORD-05",
+        "external_id": "ORD-05",
+        "name": "Production Order ORD-05",
+        "release_minute": 0,
+        "due_minute": 135,
+        "tardiness_weight": 2,
+        "operations": [
+          {
+            "id": "ORD-05-OP1",
+            "order_id": "ORD-05",
+            "sequence_index": 1,
+            "machine_id": "M1",
+            "processing_minutes": 20
+          },
+          {
+            "id": "ORD-05-OP2",
+            "order_id": "ORD-05",
+            "sequence_index": 2,
+            "machine_id": "M3",
+            "processing_minutes": 20
+          },
+          {
+            "id": "ORD-05-OP3",
+            "order_id": "ORD-05",
+            "sequence_index": 3,
+            "machine_id": "M2",
+            "processing_minutes": 15
+          },
+          {
+            "id": "ORD-05-OP4",
+            "order_id": "ORD-05",
+            "sequence_index": 4,
+            "machine_id": "M4",
+            "processing_minutes": 15
+          }
+        ]
+      },
+      {
+        "id": "ORD-06",
+        "external_id": "ORD-06",
+        "name": "Production Order ORD-06",
+        "release_minute": 0,
+        "due_minute": 145,
+        "tardiness_weight": 1,
+        "operations": [
+          {
+            "id": "ORD-06-OP1",
+            "order_id": "ORD-06",
+            "sequence_index": 1,
+            "machine_id": "M2",
+            "processing_minutes": 15
+          },
+          {
+            "id": "ORD-06-OP2",
+            "order_id": "ORD-06",
+            "sequence_index": 2,
+            "machine_id": "M4",
+            "processing_minutes": 15
+          },
+          {
+            "id": "ORD-06-OP3",
+            "order_id": "ORD-06",
+            "sequence_index": 3,
+            "machine_id": "M1",
+            "processing_minutes": 20
+          },
+          {
+            "id": "ORD-06-OP4",
+            "order_id": "ORD-06",
+            "sequence_index": 4,
+            "machine_id": "M3",
+            "processing_minutes": 10
+          }
+        ]
+      }
+    ]
+  },
+  "schedule": {
+    "id": "sched-demo-1",
+    "workspace_id": "ws-demo-1",
+    "name": "Schedule: Normal Production (Balanced Shop)",
+    "objective_type": "PURE_MAKESPAN",
+    "solver_status": "OPTIMAL",
+    "verification_status": "VERIFIED",
+    "metrics": {
+      "makespan_minutes": 105,
+      "weighted_tardiness": 0,
+      "late_order_count": 0,
+      "on_time_rate": 100.0,
+      "objective_value": 105,
+      "best_objective_bound": 105,
+      "optimality_gap": 0.0
+    },
+    "solver_telemetry": {
+      "wall_clock_time_seconds": 0.056,
+      "deterministic_time": 0.0439,
+      "user_cpu_time_seconds": 0.056,
+      "termination_reason": "OPTIMAL: Proven by CP-SAT branch-and-bound search."
+    },
+    "scheduled_operations": [
+      {
+        "operation_id": "ORD-05-OP1",
+        "order_id": "ORD-05",
+        "sequence_index": 1,
+        "machine_id": "M1",
+        "start_minute": 0,
+        "end_minute": 20,
+        "duration": 20,
+        "slack_minutes": 0
+      },
+      {
+        "operation_id": "ORD-01-OP1",
+        "order_id": "ORD-01",
+        "sequence_index": 1,
+        "machine_id": "M1",
+        "start_minute": 20,
+        "end_minute": 35,
+        "duration": 15,
+        "slack_minutes": 0
+      },
+      {
+        "operation_id": "ORD-04-OP2",
+        "order_id": "ORD-04",
+        "sequence_index": 2,
+        "machine_id": "M1",
+        "start_minute": 35,
+        "end_minute": 45,
+        "duration": 10,
+        "slack_minutes": 10
+      },
+      {
+        "operation_id": "ORD-06-OP3",
+        "order_id": "ORD-06",
+        "sequence_index": 3,
+        "machine_id": "M1",
+        "start_minute": 45,
+        "end_minute": 65,
+        "duration": 20,
+        "slack_minutes": 0
+      },
+      {
+        "operation_id": "ORD-03-OP3",
+        "order_id": "ORD-03",
+        "sequence_index": 3,
+        "machine_id": "M1",
+        "start_minute": 65,
+        "end_minute": 85,
+        "duration": 20,
+        "slack_minutes": 5
+      },
+      {
+        "operation_id": "ORD-02-OP4",
+        "order_id": "ORD-02",
+        "sequence_index": 4,
+        "machine_id": "M1",
+        "start_minute": 85,
+        "end_minute": 95,
+        "duration": 10,
+        "slack_minutes": 35
+      },
+      {
+        "operation_id": "ORD-06-OP1",
+        "order_id": "ORD-06",
+        "sequence_index": 1,
+        "machine_id": "M2",
+        "start_minute": 0,
+        "end_minute": 15,
+        "duration": 15,
+        "slack_minutes": 0
+      },
+      {
+        "operation_id": "ORD-02-OP1",
+        "order_id": "ORD-02",
+        "sequence_index": 1,
+        "machine_id": "M2",
+        "start_minute": 15,
+        "end_minute": 35,
+        "duration": 20,
+        "slack_minutes": 5
+      },
+      {
+        "operation_id": "ORD-01-OP2",
+        "order_id": "ORD-01",
+        "sequence_index": 2,
+        "machine_id": "M2",
+        "start_minute": 35,
+        "end_minute": 55,
+        "duration": 20,
+        "slack_minutes": 0
+      },
+      {
+        "operation_id": "ORD-04-OP3",
+        "order_id": "ORD-04",
+        "sequence_index": 3,
+        "machine_id": "M2",
+        "start_minute": 55,
+        "end_minute": 75,
+        "duration": 20,
+        "slack_minutes": 0
+      },
+      {
+        "operation_id": "ORD-05-OP3",
+        "order_id": "ORD-05",
+        "sequence_index": 3,
+        "machine_id": "M2",
+        "start_minute": 75,
+        "end_minute": 90,
+        "duration": 15,
+        "slack_minutes": 0
+      },
+      {
+        "operation_id": "ORD-03-OP4",
+        "order_id": "ORD-03",
+        "sequence_index": 4,
+        "machine_id": "M2",
+        "start_minute": 90,
+        "end_minute": 105,
+        "duration": 15,
+        "slack_minutes": 35
+      },
+      {
+        "operation_id": "ORD-03-OP1",
+        "order_id": "ORD-03",
+        "sequence_index": 1,
+        "machine_id": "M3",
+        "start_minute": 0,
+        "end_minute": 10,
+        "duration": 10,
+        "slack_minutes": 20
+      },
+      {
+        "operation_id": "ORD-05-OP2",
+        "order_id": "ORD-05",
+        "sequence_index": 2,
+        "machine_id": "M3",
+        "start_minute": 20,
+        "end_minute": 40,
+        "duration": 20,
+        "slack_minutes": 35
+      },
+      {
+        "operation_id": "ORD-02-OP2",
+        "order_id": "ORD-02",
+        "sequence_index": 2,
+        "machine_id": "M3",
+        "start_minute": 40,
+        "end_minute": 55,
+        "duration": 15,
+        "slack_minutes": 0
+      },
+      {
+        "operation_id": "ORD-01-OP3",
+        "order_id": "ORD-01",
+        "sequence_index": 3,
+        "machine_id": "M3",
+        "start_minute": 55,
+        "end_minute": 65,
+        "duration": 10,
+        "slack_minutes": 5
+      },
+      {
+        "operation_id": "ORD-06-OP4",
+        "order_id": "ORD-06",
+        "sequence_index": 4,
+        "machine_id": "M3",
+        "start_minute": 65,
+        "end_minute": 75,
+        "duration": 10,
+        "slack_minutes": 70
+      },
+      {
+        "operation_id": "ORD-04-OP4",
+        "order_id": "ORD-04",
+        "sequence_index": 4,
+        "machine_id": "M3",
+        "start_minute": 75,
+        "end_minute": 100,
+        "duration": 25,
+        "slack_minutes": 50
+      },
+      {
+        "operation_id": "ORD-04-OP1",
+        "order_id": "ORD-04",
+        "sequence_index": 1,
+        "machine_id": "M4",
+        "start_minute": 0,
+        "end_minute": 15,
+        "duration": 15,
+        "slack_minutes": 20
+      },
+      {
+        "operation_id": "ORD-06-OP2",
+        "order_id": "ORD-06",
+        "sequence_index": 2,
+        "machine_id": "M4",
+        "start_minute": 15,
+        "end_minute": 30,
+        "duration": 15,
+        "slack_minutes": 15
+      },
+      {
+        "operation_id": "ORD-03-OP2",
+        "order_id": "ORD-03",
+        "sequence_index": 2,
+        "machine_id": "M4",
+        "start_minute": 30,
+        "end_minute": 55,
+        "duration": 25,
+        "slack_minutes": 10
+      },
+      {
+        "operation_id": "ORD-02-OP3",
+        "order_id": "ORD-02",
+        "sequence_index": 3,
+        "machine_id": "M4",
+        "start_minute": 55,
+        "end_minute": 70,
+        "duration": 15,
+        "slack_minutes": 15
+      },
+      {
+        "operation_id": "ORD-01-OP4",
+        "order_id": "ORD-01",
+        "sequence_index": 4,
+        "machine_id": "M4",
+        "start_minute": 70,
+        "end_minute": 85,
+        "duration": 15,
+        "slack_minutes": 35
+      },
+      {
+        "operation_id": "ORD-05-OP4",
+        "order_id": "ORD-05",
+        "sequence_index": 4,
+        "machine_id": "M4",
+        "start_minute": 90,
+        "end_minute": 105,
+        "duration": 15,
+        "slack_minutes": 30
+      }
+    ],
+    "downtimes": [],
+    "machines": [
+      {
+        "id": "M1",
+        "name": "CNC Milling Station Alpha"
+      },
+      {
+        "id": "M2",
+        "name": "Precision Lathe Beta"
+      },
+      {
+        "id": "M3",
+        "name": "Surface Grinder Gamma"
+      },
+      {
+        "id": "M4",
+        "name": "Assembly & Inspection Delta"
+      }
+    ],
+    "created_at": "2026-10-18T00:00:00Z"
+  },
+  "verification_report": {
+    "is_valid": true,
+    "checks_run": 8,
+    "checks_passed": 8,
+    "violations": []
+  }
+}

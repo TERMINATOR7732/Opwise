@@ -1,0 +1,135 @@
+{
+  "id": "demo-6",
+  "name": "Malformed / Invalid Factory Inputs",
+  "description": "Corrupted manufacturing input: negative processing duration on OP-03 (-10m), sequence gap [1, 2, 4], and reference to non-existent machine M99. Independent verifier rejects with multiple invariant violations.",
+  "category": "Edge Case & Validation",
+  "factory": {
+    "workspace_id": "ws-demo-6",
+    "machines": [
+      {
+        "id": "M1",
+        "external_id": "M1",
+        "name": "CNC Milling Station Alpha",
+        "created_at": "2026-10-18T00:00:00Z"
+      },
+      {
+        "id": "M2",
+        "external_id": "M2",
+        "name": "Precision Lathe Beta",
+        "created_at": "2026-10-18T00:00:00Z"
+      }
+    ],
+    "downtimes": [],
+    "orders": [
+      {
+        "id": "ORD-01",
+        "external_id": "ORD-01",
+        "name": "Production Order ORD-01 (Corrupted)",
+        "release_minute": 0,
+        "due_minute": 100,
+        "tardiness_weight": 1,
+        "operations": [
+          {
+            "id": "ORD-01-OP1",
+            "order_id": "ORD-01",
+            "sequence_index": 1,
+            "machine_id": "M1",
+            "processing_minutes": 20
+          },
+          {
+            "id": "ORD-01-OP2",
+            "order_id": "ORD-01",
+            "sequence_index": 2,
+            "machine_id": "M2",
+            "processing_minutes": 15
+          },
+          {
+            "id": "ORD-01-OP3",
+            "order_id": "ORD-01",
+            "sequence_index": 4,
+            "machine_id": "M99",
+            "processing_minutes": -10
+          }
+        ]
+      }
+    ]
+  },
+  "schedule": {
+    "id": "sched-demo-6",
+    "workspace_id": "ws-demo-6",
+    "name": "Schedule: Malformed Inputs (Corrupted)",
+    "objective_type": "PURE_MAKESPAN",
+    "solver_status": "MODEL_INVALID",
+    "verification_status": "VERIFICATION_FAILED",
+    "metrics": {
+      "makespan_minutes": 30,
+      "weighted_tardiness": 0,
+      "late_order_count": 0,
+      "on_time_rate": 100.0,
+      "objective_value": null,
+      "best_objective_bound": null,
+      "optimality_gap": null
+    },
+    "solver_telemetry": {
+      "wall_clock_time_seconds": 0.001,
+      "deterministic_time": 0.0,
+      "user_cpu_time_seconds": 0.001,
+      "termination_reason": "MODEL_INVALID: Pre-solver validation rejected malformed factory inputs."
+    },
+    "scheduled_operations": [
+      {
+        "operation_id": "ORD-01-OP1",
+        "order_id": "ORD-01",
+        "sequence_index": 1,
+        "machine_id": "M1",
+        "start_minute": 0,
+        "end_minute": 20,
+        "duration": 20,
+        "slack_minutes": 0
+      },
+      {
+        "operation_id": "ORD-01-OP2",
+        "order_id": "ORD-01",
+        "sequence_index": 2,
+        "machine_id": "M2",
+        "start_minute": 15,
+        "end_minute": 30,
+        "duration": 15,
+        "slack_minutes": 0
+      },
+      {
+        "operation_id": "ORD-01-OP3",
+        "order_id": "ORD-01",
+        "sequence_index": 4,
+        "machine_id": "M99",
+        "start_minute": 30,
+        "end_minute": 20,
+        "duration": -10,
+        "slack_minutes": 0
+      }
+    ],
+    "downtimes": [],
+    "machines": [
+      {
+        "id": "M1",
+        "name": "CNC Milling Station Alpha"
+      },
+      {
+        "id": "M2",
+        "name": "Precision Lathe Beta"
+      }
+    ],
+    "created_at": "2026-10-18T00:00:00Z"
+  },
+  "verification_report": {
+    "is_valid": false,
+    "checks_run": 8,
+    "checks_passed": 3,
+    "violations": [
+      "Operation 'ORD-01-OP3' duration mismatch: span [30, 20) = -10m, expected -10m.",
+      "Operation 'ORD-01-OP3' assigned to non-existent machine 'M99'.",
+      "Precedence violation in order 'ORD-01': operation 'ORD-01-OP2' starts at minute 15 before preceding operation ends at minute 20.",
+      "Operation 'ORD-01-OP3' has non-positive duration interval [30, 20)."
+    ]
+  }
+}

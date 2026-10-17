@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AppHeader } from './AppHeader';
 import { AppNav } from './AppNav';
+import { DemoBanner } from './DemoBanner';
 
 export interface AppShellProps {
   children: React.ReactNode;
@@ -19,6 +20,7 @@ export function AppShell({ children }: AppShellProps): React.ReactElement {
 
   return (
     <div className="app-layout">
+      <DemoBanner />
       <AppHeader onToggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
       <div className="app-body">
         <aside

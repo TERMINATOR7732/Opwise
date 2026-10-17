@@ -62,3 +62,12 @@ jobs:
 
       - name: Type Check with TypeScript
         run: npm run typecheck
+
+      - name: Test with Vitest
+        run: npm run test
+
+      - name: Build Production Bundle
+        run: npm run build
+
+      - name: Build Demo Bundle
+        run: npm run build:demo

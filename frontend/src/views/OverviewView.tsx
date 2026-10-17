@@ -9,6 +9,7 @@ import { Badge } from '../components/common/Badge';
 import { EmptyState } from '../components/common/EmptyState';
 import { ErrorBanner } from '../components/common/ErrorBanner';
 import { LoadingState } from '../components/common/LoadingState';
+import { DemoScenariosCard } from './overview/DemoScenariosCard';
 
 function ActiveWorkspaceCard({
   activeWorkspace,
@@ -92,24 +93,28 @@ function ArchitectureStatusCard(): React.ReactElement {
     <Card title="System Architectural Status" subtitle="Verified Milestones & Capability Roadmap">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Milestone 01–07: Core OR-Tools Solver, Verifier, Metrics & SQLite REST API</span>
+          <span>Milestone 01–07: Core CP-SAT Solver, Verifier, Metrics & SQLite REST API</span>
           <Badge variant="optimal">VERIFIED (100% PASS)</Badge>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Milestone 08A: React Application Shell, State Machine & Navigation</span>
-          <Badge variant="optimal">ACTIVE (CURRENT)</Badge>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Milestone 09: Factory Management Grid & Interactive Gantt Canvas</span>
-          <Badge variant="neutral">COMING SOON (M09)</Badge>
+          <span>Milestone 08–09: Factory Management Grid & Interactive Gantt Canvas</span>
+          <Badge variant="optimal">VERIFIED (100% PASS)</Badge>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>Milestone 10: Disruption Lab & Scenario Comparator</span>
-          <Badge variant="neutral">COMING SOON (M10)</Badge>
+          <Badge variant="optimal">VERIFIED (100% PASS)</Badge>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Milestone 11: Two-Phase Atomic CSV/Excel Import & Export</span>
-          <Badge variant="neutral">COMING SOON (M11)</Badge>
+          <span>Milestone 11: Production Reports, KPI Recalculation & Data Export</span>
+          <Badge variant="optimal">VERIFIED (100% PASS)</Badge>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Milestone 12: Safe Two-Phase CSV/XLSX Import Engine & Validation</span>
+          <Badge variant="optimal">VERIFIED (100% PASS)</Badge>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Milestone 13: Standalone Client-Side Demo Mode & In-Browser Verifier</span>
+          <Badge variant="optimal">ACTIVE (CURRENT)</Badge>
         </div>
       </div>
     </Card>
@@ -252,6 +257,7 @@ function OverviewWorkspaceContent({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <ActiveWorkspaceCard activeWorkspace={activeWorkspace} onNewWorkspace={onNewWorkspace} />
+      <DemoScenariosCard />
       <WorkflowSteps onNavigate={onNavigate} />
       <ArchitectureStatusCard />
     </div>
@@ -268,7 +274,7 @@ export function OverviewView(): React.ReactElement {
       <PageHeader
         title="Production Planning Overview"
         description="Deterministic discrete manufacturing optimization powered by Google OR-Tools CP-SAT and verified by clean-room invariant auditing."
-        badge={<Badge variant="optimal">Milestone 08A Active</Badge>}
+        badge={<Badge variant="optimal">Milestone 13 Active</Badge>}
         actions={<Button variant="secondary" size="sm" onClick={() => refreshWorkspaces()}>Refresh State</Button>}
       />
 
@@ -281,11 +287,14 @@ export function OverviewView(): React.ReactElement {
       {status === 'loading' && workspaces.length === 0 ? (
         <LoadingState message="Loading workspaces..." />
       ) : workspaces.length === 0 ? (
-        <EmptyState
-          title="No Workspaces Configured"
-          description="Opwise organizes production planning into isolated workspaces. Create your first workspace to begin modeling shop floor capacity and job orders."
-          action={<Button variant="primary" onClick={() => setShowCreateModal(true)}>+ Create First Workspace</Button>}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <EmptyState
+            title="No Workspaces Configured"
+            description="Opwise organizes production planning into isolated workspaces. Create your first workspace to begin modeling shop floor capacity, or explore one of the pre-solved synthetic demo scenarios below."
+            action={<Button variant="primary" onClick={() => setShowCreateModal(true)}>+ Create First Workspace</Button>}
+          />
+          <DemoScenariosCard />
+        </div>
       ) : (
         <OverviewWorkspaceContent
           activeWorkspace={activeWorkspace}
