@@ -19,7 +19,19 @@ def sanitize_csv_cell(value: Any) -> Any:
     if value is None:
         return ""
     if isinstance(value, str):
-        if value and value[0] in ("=", "+", "-", "@", "\t", "\r"):
+        if not value:
+            return value
+        stripped_spaces = value.lstrip(" ")
+        if not stripped_spaces:
+            return value
+        first = stripped_spaces[0]
+        if first in ("=", "@", "\t", "\r"):
+            return "'" + value
+        if first in ("+", "-"):
+            num_cand = stripped_spaces.strip()
+            num_body = num_cand[1:]
+            if num_body and num_body.replace(".", "", 1).isdigit():
+                return value
             return "'" + value
         return value
     return value

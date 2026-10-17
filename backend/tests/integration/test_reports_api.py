@@ -53,8 +53,17 @@ def test_formula_injection_sanitization() -> None:
     assert sanitize_csv_cell("\tTAB_INJECT") == "'\tTAB_INJECT"
     assert sanitize_csv_cell("\rRETURN_INJECT") == "'\rRETURN_INJECT"
 
-    # Safe primitives and text
+    # Leading whitespace attack vectors
+    assert sanitize_csv_cell("   =1+1") == "'   =1+1"
+    assert sanitize_csv_cell("  @SUM(A1:A10)") == "'  @SUM(A1:A10)"
+    assert sanitize_csv_cell(" \tTAB_INJECT") == "' \tTAB_INJECT"
+    assert sanitize_csv_cell("  -cmd|' /C calc'!A0") == "'  -cmd|' /C calc'!A0"
+
+    # Safe primitives and text (including signed numeric strings)
     assert sanitize_csv_cell("Safe Order Name") == "Safe Order Name"
+    assert sanitize_csv_cell("-15") == "-15"
+    assert sanitize_csv_cell("+10.5") == "+10.5"
+    assert sanitize_csv_cell("   -42.0") == "   -42.0"
     assert sanitize_csv_cell(100) == 100
     assert sanitize_csv_cell(99.5) == 99.5
     assert sanitize_csv_cell(None) == ""

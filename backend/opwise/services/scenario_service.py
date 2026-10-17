@@ -52,6 +52,30 @@ from opwise.solver.solver_types import SolverConfig, SolverResult
 from opwise.verifier.independent_verifier import ScheduleVerifier
 
 
+def _parse_disruption_delta(json_str: str | None) -> DisruptionDelta:
+    delta_dict = json.loads(json_str) if json_str else {}
+    return DisruptionDelta(
+        added_downtimes=[DowntimeDisruptionItem(**dt) for dt in delta_dict.get("added_downtimes", [])],
+        added_orders=[OrderDisruptionItem(**o) for o in delta_dict.get("added_orders", [])],
+    )
+
+
+def _compute_schedule_deltas(
+    base: ScheduleModel, comp: ScheduleModel
+) -> tuple[int, int, int, float, bool, bool, bool, str | None]:
+    delta_ms = comp.makespan_minutes - base.makespan_minutes
+    delta_wt = comp.weighted_tardiness - base.weighted_tardiness
+    delta_late = comp.late_order_count - base.late_order_count
+    delta_otr = round(comp.on_time_rate - base.on_time_rate, 2)
+    obj_diff = base.objective_type != comp.objective_type
+    status_diff = base.solver_status != comp.solver_status
+    order_diff = {op.order_id for op in base.scheduled_operations} != {
+        op.order_id for op in comp.scheduled_operations
+    }
+    unlike = UNLIKE_WARNING_TEXT if (obj_diff or status_diff or order_diff) else None
+    return delta_ms, delta_wt, delta_late, delta_otr, obj_diff, status_diff, order_diff, unlike
+
+
 class ScenarioService:
     """Coordinates disruption simulation, reoptimization from t=0, and schedule comparisons."""
 
@@ -73,11 +97,6 @@ class ScenarioService:
     def _to_scenario_response(
         self, model: ScenarioModel, comparison: ScenarioComparisonResponse | None = None
     ) -> ScenarioResponse:
-        delta_dict = json.loads(model.disruption_delta_json) if model.disruption_delta_json else {}
-        delta = DisruptionDelta(
-            added_downtimes=[DowntimeDisruptionItem(**dt) for dt in delta_dict.get("added_downtimes", [])],
-            added_orders=[OrderDisruptionItem(**o) for o in delta_dict.get("added_orders", [])],
-        )
         return ScenarioResponse(
             id=model.id,
             workspace_id=model.workspace_id,
@@ -86,7 +105,7 @@ class ScenarioService:
             name=model.name,
             description=model.description,
             disruption_type=model.disruption_type,
-            disruption_delta=delta,
+            disruption_delta=_parse_disruption_delta(model.disruption_delta_json),
             created_at=model.created_at,
             comparison=comparison,
         )
@@ -187,6 +206,30 @@ class ScenarioService:
             verification_status="SKIPPED",
         )
 
+    async def _save_reopt_schedule(
+        self,
+        workspace_id: str,
+        scenario: ScenarioModel,
+        disrupted_factory: Factory,
+        result: SolverResult,
+    ) -> ScheduleModel:
+        sched = result.schedule
+        assert sched is not None
+        v_rep = ScheduleVerifier().verify(disrupted_factory, sched)
+        v_stat = "VERIFIED" if v_rep.is_valid else "VERIFICATION_FAILED"
+        return await self.schedule_repo.save_schedule(
+            workspace_id=workspace_id,
+            schedule=sched,
+            name=f"{scenario.name} (Recovery)",
+            wall_clock_seconds=result.wall_clock_seconds,
+            deterministic_time=result.deterministic_time,
+            input_snapshot_json=serialize_factory_snapshot(disrupted_factory),
+            objective_value=int(result.objective_value) if result.objective_value is not None else None,
+            best_objective_bound=int(result.best_bound) if result.best_bound is not None else None,
+            optimality_gap=0.0 if result.status == ScheduleStatus.OPTIMAL else None,
+            verification_status=v_stat,
+        )
+
     async def reoptimize_scenario(
         self,
         workspace_id: str,
@@ -204,35 +247,25 @@ class ScenarioService:
         if base_factory is None:
             raise DomainError("Failed to reconstruct baseline factory snapshot.")
 
-        delta_dict = json.loads(scenario.disruption_delta_json) if scenario.disruption_delta_json else {}
-        delta = DisruptionDelta(
-            added_downtimes=[DowntimeDisruptionItem(**dt) for dt in delta_dict.get("added_downtimes", [])],
-            added_orders=[OrderDisruptionItem(**o) for o in delta_dict.get("added_orders", [])],
-        )
+        delta = _parse_disruption_delta(scenario.disruption_delta_json)
         disrupted_factory = synthesize_disrupted_factory(workspace_id, base_factory, delta)
 
         p = params or ScenarioReoptimizeRequest()
         mode = self._map_objective_mode(base_sched.objective_type)
-        cfg = SolverConfig(time_limit_seconds=p.primary_time_budget_seconds, worker_threads=p.num_workers, random_seed=p.random_seed)
+        cfg = SolverConfig(
+            time_limit_seconds=p.primary_time_budget_seconds,
+            worker_threads=p.num_workers,
+            random_seed=p.random_seed,
+        )
         result = CPSATScheduler().solve(disrupted_factory, objective_mode=mode, config=cfg)
 
         if result.schedule is None:
-            saved_sched = await self._handle_unsuccessful_reopt(workspace_id, scenario, base_sched, disrupted_factory, result)
+            saved_sched = await self._handle_unsuccessful_reopt(
+                workspace_id, scenario, base_sched, disrupted_factory, result
+            )
         else:
-            sched = result.schedule
-            v_rep = ScheduleVerifier().verify(disrupted_factory, sched)
-            v_stat = "VERIFIED" if v_rep.is_valid else "VERIFICATION_FAILED"
-            saved_sched = await self.schedule_repo.save_schedule(
-                workspace_id=workspace_id,
-                schedule=sched,
-                name=f"{scenario.name} (Recovery)",
-                wall_clock_seconds=result.wall_clock_seconds,
-                deterministic_time=result.deterministic_time,
-                input_snapshot_json=serialize_factory_snapshot(disrupted_factory),
-                objective_value=int(result.objective_value) if result.objective_value is not None else None,
-                best_objective_bound=int(result.best_bound) if result.best_bound is not None else None,
-                optimality_gap=0.0 if result.status == ScheduleStatus.OPTIMAL else None,
-                verification_status=v_stat,
+            saved_sched = await self._save_reopt_schedule(
+                workspace_id, scenario, disrupted_factory, result
             )
 
         await self.scenario_repo.update_reoptimized_schedule(workspace_id, scenario_id, saved_sched.id)
@@ -245,6 +278,35 @@ class ScenarioService:
             ),
         )
 
+    async def _persist_comparison(
+        self,
+        workspace_id: str,
+        scenario_id: str,
+        req: ScenarioCompareRequest,
+        deltas: tuple[int, int, int, float, bool, bool, bool, str | None],
+        div_json: str,
+    ) -> ScenarioComparisonResponse:
+        scenario = await self.scenario_repo.get_by_id(workspace_id, scenario_id)
+        if scenario is None:
+            raise ResourceNotFoundError("Scenario", scenario_id)
+        saved = await self.scenario_repo.save_comparison(
+            scenario_id=scenario_id,
+            baseline_schedule_id=req.baseline_schedule_id,
+            compared_schedule_id=req.compared_schedule_id,
+            delta_makespan=deltas[0],
+            delta_weighted_tardiness=deltas[1],
+            delta_late_order_count=deltas[2],
+            objective_diff_detected=deltas[4],
+            order_set_diff_detected=deltas[6],
+            status_diff_detected=deltas[5],
+            time_limit_diff_detected=False,
+            critical_path_divergence_json=div_json,
+            unlike_comparison_warning=deltas[7],
+        )
+        resp = self._to_comparison_response(saved)
+        resp.delta_on_time_rate = deltas[3]
+        return resp
+
     async def compare_schedules(
         self, workspace_id: str, req: ScenarioCompareRequest
     ) -> ScenarioComparisonResponse:
@@ -255,54 +317,29 @@ class ScenarioService:
         if comp is None:
             raise ResourceNotFoundError("Schedule", req.compared_schedule_id)
 
-        delta_ms = comp.makespan_minutes - base.makespan_minutes
-        delta_wt = comp.weighted_tardiness - base.weighted_tardiness
-        delta_late = comp.late_order_count - base.late_order_count
-        delta_otr = round(comp.on_time_rate - base.on_time_rate, 2)
-
-        obj_diff = base.objective_type != comp.objective_type
-        status_diff = base.solver_status != comp.solver_status
-        base_orders = {op.order_id for op in base.scheduled_operations}
-        comp_orders = {op.order_id for op in comp.scheduled_operations}
-        order_diff = base_orders != comp_orders
-        unlike = UNLIKE_WARNING_TEXT if (obj_diff or status_diff or order_diff) else None
-
+        deltas = _compute_schedule_deltas(base, comp)
         divergences = compute_operation_divergences(base.scheduled_operations, comp.scheduled_operations)
         div_json = json.dumps([d.model_dump() for d in divergences])
 
         if req.scenario_id:
-            saved_comp = await self.scenario_repo.save_comparison(
-                scenario_id=req.scenario_id,
-                baseline_schedule_id=req.baseline_schedule_id,
-                compared_schedule_id=req.compared_schedule_id,
-                delta_makespan=delta_ms,
-                delta_weighted_tardiness=delta_wt,
-                delta_late_order_count=delta_late,
-                objective_diff_detected=obj_diff,
-                order_set_diff_detected=order_diff,
-                status_diff_detected=status_diff,
-                time_limit_diff_detected=False,
-                critical_path_divergence_json=div_json,
-                unlike_comparison_warning=unlike,
+            return await self._persist_comparison(
+                workspace_id, req.scenario_id, req, deltas, div_json
             )
-            resp = self._to_comparison_response(saved_comp)
-            resp.delta_on_time_rate = delta_otr
-            return resp
 
         return ScenarioComparisonResponse(
             id=str(uuid.uuid4()),
             scenario_id=None,
             baseline_schedule_id=req.baseline_schedule_id,
             compared_schedule_id=req.compared_schedule_id,
-            delta_makespan=delta_ms,
-            delta_weighted_tardiness=delta_wt,
-            delta_late_order_count=delta_late,
-            delta_on_time_rate=delta_otr,
-            objective_diff_detected=obj_diff,
-            order_set_diff_detected=order_diff,
-            status_diff_detected=status_diff,
+            delta_makespan=deltas[0],
+            delta_weighted_tardiness=deltas[1],
+            delta_late_order_count=deltas[2],
+            delta_on_time_rate=deltas[3],
+            objective_diff_detected=deltas[4],
+            order_set_diff_detected=deltas[6],
+            status_diff_detected=deltas[5],
             time_limit_diff_detected=False,
-            unlike_comparison_warning=unlike,
+            unlike_comparison_warning=deltas[7],
             diverged_operations=divergences,
             created_at=comp.created_at,
         )

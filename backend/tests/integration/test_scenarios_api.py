@@ -5,6 +5,7 @@ Governed by SPECIFICATION.md Section 6, DATA_AND_API.md Section 3.2, and ADR-005
 
 import os
 import tempfile
+import uuid
 from collections.abc import Generator
 from pathlib import Path
 
@@ -42,9 +43,12 @@ def app_with_db() -> Generator[FastAPI, None, None]:
         os.remove(db_path)
 
 
-async def _setup_workspace_and_baseline(client: httpx.AsyncClient) -> tuple[str, str]:
+async def _setup_workspace_and_baseline(
+    client: httpx.AsyncClient, name: str | None = None
+) -> tuple[str, str]:
     """Helper to create a populated factory workspace and generate a baseline schedule."""
-    ws_res = await client.post("/api/v1/workspaces", json={"name": "Factory WS"})
+    ws_name = name or f"Factory WS {uuid.uuid4().hex[:8]}"
+    ws_res = await client.post("/api/v1/workspaces", json={"name": ws_name})
     ws_id = ws_res.json()["data"]["id"]
 
     factory_payload = {
@@ -278,3 +282,40 @@ async def test_scenarios_compare_direct_endpoint(app_with_db: FastAPI) -> None:
         assert comp["baseline_schedule_id"] == baseline_id
         assert comp["compared_schedule_id"] == recovery_id
         assert comp["delta_makespan"] >= 15
+
+
+@pytest.mark.asyncio
+async def test_scenarios_compare_cross_workspace_isolation(app_with_db: FastAPI) -> None:
+    """Verify comparing schedules rejects scenario_id belonging to a different workspace."""
+    transport = httpx.ASGITransport(app=app_with_db)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        ws_a, base_a = await _setup_workspace_and_baseline(client)
+        ws_b, base_b = await _setup_workspace_and_baseline(client)
+
+        factory_b = (await client.get(f"/api/v1/workspaces/{ws_b}/factory")).json()["data"]
+        m1_b = factory_b["machines"][0]["id"]
+
+        scen_b = await client.post(
+            f"/api/v1/workspaces/{ws_b}/scenarios",
+            json={
+                "name": "Scenario B",
+                "baseline_schedule_id": base_b,
+                "disruption_type": "MACHINE_DOWNTIME",
+                "disruption_delta": {
+                    "added_downtimes": [{"machine_id": m1_b, "start_minute": 0, "end_minute": 10}]
+                },
+            },
+        )
+        scen_b_id = scen_b.json()["data"]["id"]
+
+        # Attempt to attach comparison in Workspace A using Workspace B's scenario_id
+        compare_res = await client.post(
+            f"/api/v1/workspaces/{ws_a}/scenarios/compare",
+            json={
+                "baseline_schedule_id": base_a,
+                "compared_schedule_id": base_a,
+                "scenario_id": scen_b_id,
+            },
+        )
+        assert compare_res.status_code == 404
+        assert "not found" in compare_res.json()["error"]["message"].lower()
