@@ -48,6 +48,144 @@ def _write_section_rows(
     writer.writerow([])
 
 
+def _build_summary_rows(report: ScheduleReportResponse) -> list[list[Any]]:
+    """Build key-value summary rows for schedule report."""
+    return [
+        ["Schedule ID", report.schedule_id],
+        ["Schedule Name", report.schedule_name],
+        ["Objective Type", report.objective_type],
+        ["Solver Status", report.solver_status],
+        ["Verification Status", report.verification_status],
+        ["Created At", report.created_at.isoformat()],
+        ["Makespan (minutes)", report.summary.makespan_minutes],
+        ["Weighted Tardiness", report.summary.total_weighted_tardiness],
+        ["Late Orders", report.summary.late_order_count],
+        ["On-Time Orders", report.summary.on_time_order_count],
+        ["Total Orders", report.summary.total_order_count],
+        ["On-Time Delivery Rate (%)", f"{report.summary.on_time_rate_pct:.2f}%"],
+        ["Solver Wall Clock (seconds)", f"{report.summary.solver_wall_clock_seconds:.4f}"],
+        ["Solver Deterministic Time", str(report.summary.solver_deterministic_time or "N/A")],
+    ]
+
+
+def _build_machine_rows(report: ScheduleReportResponse) -> tuple[list[str], list[list[Any]]]:
+    """Build headers and rows for machine utilization metrics."""
+    headers = [
+        "Machine ID",
+        "Name",
+        "Workload (min)",
+        "Downtime (min)",
+        "Idle (min)",
+        "Net Util (%)",
+        "Gross Util (%)",
+        "Operations",
+    ]
+    rows = [
+        [
+            m.machine_id,
+            m.machine_name,
+            m.workload_minutes,
+            m.downtime_minutes,
+            m.idle_minutes,
+            f"{m.net_utilization_pct:.2f}%",
+            f"{m.gross_utilization_pct:.2f}%",
+            m.assigned_operation_count,
+        ]
+        for m in report.machine_utilization
+    ]
+    return headers, rows
+
+
+def _build_order_rows(report: ScheduleReportResponse) -> tuple[list[str], list[list[Any]]]:
+    """Build headers and rows for order performance metrics."""
+    headers = [
+        "Order ID",
+        "Order Code",
+        "Release (min)",
+        "Due Date (min)",
+        "Completion (min)",
+        "Tardiness (min)",
+        "Weight",
+        "Weighted Tardiness",
+        "Slack (min)",
+        "Status",
+        "Operations",
+        "Total Proc Time (min)",
+    ]
+    rows = [
+        [
+            o.order_id,
+            o.order_code,
+            o.release_minute,
+            o.due_date_minute,
+            o.completion_minute,
+            o.tardiness_minutes,
+            o.tardiness_weight,
+            o.weighted_tardiness,
+            o.slack_minutes,
+            "LATE" if o.is_late else "ON_TIME",
+            o.operation_count,
+            o.total_processing_minutes,
+        ]
+        for o in report.order_performance
+    ]
+    return headers, rows
+
+
+def _build_operation_rows(
+    schedule_model: ScheduleModel,
+) -> tuple[list[str], list[list[Any]]]:
+    """Build headers and rows for scheduled operations."""
+    headers = [
+        "Operation ID",
+        "Order ID",
+        "Machine ID",
+        "Sequence",
+        "Start (min)",
+        "End (min)",
+        "Duration (min)",
+        "Slack (min)",
+    ]
+    rows = [
+        [
+            op.operation_id,
+            op.order_id,
+            op.machine_id,
+            op.sequence_number,
+            op.start_minute,
+            op.end_minute,
+            op.processing_duration_minutes,
+            op.slack_minutes,
+        ]
+        for op in schedule_model.scheduled_operations
+    ]
+    return headers, rows
+
+
+def _build_bottleneck_rows(report: ScheduleReportResponse) -> list[list[Any]]:
+    """Build rows for bottleneck diagnostic analysis."""
+    bn = report.bottleneck
+    return [
+        ["Primary Bottleneck Machine", bn.primary_bottleneck_machine_id or "NONE"],
+        ["Primary Bottleneck Name", bn.primary_bottleneck_machine_name or "N/A"],
+        ["Highest Workload (minutes)", bn.highest_workload_minutes],
+        ["Highest Net Utilization (%)", f"{bn.highest_net_utilization_pct:.2f}%"],
+        ["Machine Load Ranking", " > ".join(bn.ranked_machines) if bn.ranked_machines else "N/A"],
+        ["Disclaimer", bn.disclaimer],
+    ]
+
+
+def _build_audit_rows(report: ScheduleReportResponse) -> list[list[Any]]:
+    """Build rows for independent verification audit results."""
+    audit = report.verification_audit
+    return [
+        ["Verification Status", "VALID" if audit.is_valid else "INVALID"],
+        ["Checks Run", audit.checks_run],
+        ["Checks Passed", audit.checks_passed],
+        ["Violations", "; ".join(audit.violations) if audit.violations else "None"],
+    ]
+
+
 class ExportService:
     """Generates sanitized, structurally sound CSV and JSON exports."""
 
@@ -57,126 +195,26 @@ class ExportService:
         output = io.StringIO()
         writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
 
-        summary_rows = [
-            ["Schedule ID", report.schedule_id],
-            ["Schedule Name", report.schedule_name],
-            ["Objective Type", report.objective_type],
-            ["Solver Status", report.solver_status],
-            ["Verification Status", report.verification_status],
-            ["Created At", report.created_at.isoformat()],
-            ["Makespan (minutes)", report.summary.makespan_minutes],
-            ["Weighted Tardiness", report.summary.total_weighted_tardiness],
-            ["Late Orders", report.summary.late_order_count],
-            ["On-Time Orders", report.summary.on_time_order_count],
-            ["Total Orders", report.summary.total_order_count],
-            ["On-Time Delivery Rate (%)", f"{report.summary.on_time_rate_pct:.2f}%"],
-            ["Solver Wall Clock (seconds)", f"{report.summary.solver_wall_clock_seconds:.4f}"],
-            ["Solver Deterministic Time", str(report.summary.solver_deterministic_time or "N/A")],
-        ]
-        _write_section_rows(writer, "# 1. SCHEDULE SUMMARY", ["Metric", "Value"], summary_rows)
+        _write_section_rows(
+            writer, "# 1. SCHEDULE SUMMARY", ["Metric", "Value"], _build_summary_rows(report)
+        )
 
-        mach_headers = [
-            "Machine ID",
-            "Name",
-            "Workload (min)",
-            "Downtime (min)",
-            "Idle (min)",
-            "Net Util (%)",
-            "Gross Util (%)",
-            "Operations",
-        ]
-        mach_rows = [
-            [
-                m.machine_id,
-                m.machine_name,
-                m.workload_minutes,
-                m.downtime_minutes,
-                m.idle_minutes,
-                f"{m.net_utilization_pct:.2f}%",
-                f"{m.gross_utilization_pct:.2f}%",
-                m.assigned_operation_count,
-            ]
-            for m in report.machine_utilization
-        ]
+        mach_headers, mach_rows = _build_machine_rows(report)
         _write_section_rows(writer, "# 2. MACHINE UTILIZATION", mach_headers, mach_rows)
 
-        order_headers = [
-            "Order ID",
-            "Order Code",
-            "Release (min)",
-            "Due Date (min)",
-            "Completion (min)",
-            "Tardiness (min)",
-            "Weight",
-            "Weighted Tardiness",
-            "Slack (min)",
-            "Status",
-            "Operations",
-            "Total Proc Time (min)",
-        ]
-        order_rows = [
-            [
-                o.order_id,
-                o.order_code,
-                o.release_minute,
-                o.due_date_minute,
-                o.completion_minute,
-                o.tardiness_minutes,
-                o.tardiness_weight,
-                o.weighted_tardiness,
-                o.slack_minutes,
-                "LATE" if o.is_late else "ON_TIME",
-                o.operation_count,
-                o.total_processing_minutes,
-            ]
-            for o in report.order_performance
-        ]
+        order_headers, order_rows = _build_order_rows(report)
         _write_section_rows(writer, "# 3. ORDER PERFORMANCE", order_headers, order_rows)
 
-        op_headers = [
-            "Operation ID",
-            "Order ID",
-            "Machine ID",
-            "Sequence",
-            "Start (min)",
-            "End (min)",
-            "Duration (min)",
-            "Slack (min)",
-        ]
-        op_rows = [
-            [
-                op.operation_id,
-                op.order_id,
-                op.machine_id,
-                op.sequence_number,
-                op.start_minute,
-                op.end_minute,
-                op.processing_duration_minutes,
-                op.slack_minutes,
-            ]
-            for op in schedule_model.scheduled_operations
-        ]
+        op_headers, op_rows = _build_operation_rows(schedule_model)
         _write_section_rows(writer, "# 4. SCHEDULED OPERATIONS", op_headers, op_rows)
 
-        bn = report.bottleneck
-        bn_rows = [
-            ["Primary Bottleneck Machine", bn.primary_bottleneck_machine_id or "NONE"],
-            ["Primary Bottleneck Name", bn.primary_bottleneck_machine_name or "N/A"],
-            ["Highest Workload (minutes)", bn.highest_workload_minutes],
-            ["Highest Net Utilization (%)", f"{bn.highest_net_utilization_pct:.2f}%"],
-            ["Machine Load Ranking", " > ".join(bn.ranked_machines) if bn.ranked_machines else "N/A"],
-            ["Disclaimer", bn.disclaimer],
-        ]
-        _write_section_rows(writer, "# 5. BOTTLENECK ANALYSIS", ["Diagnostic", "Detail"], bn_rows)
+        _write_section_rows(
+            writer, "# 5. BOTTLENECK ANALYSIS", ["Diagnostic", "Detail"], _build_bottleneck_rows(report)
+        )
 
-        audit = report.verification_audit
-        audit_rows = [
-            ["Verification Status", "VALID" if audit.is_valid else "INVALID"],
-            ["Checks Run", audit.checks_run],
-            ["Checks Passed", audit.checks_passed],
-            ["Violations", "; ".join(audit.violations) if audit.violations else "None"],
-        ]
-        _write_section_rows(writer, "# 6. INDEPENDENT VERIFICATION AUDIT", ["Check", "Result"], audit_rows)
+        _write_section_rows(
+            writer, "# 6. INDEPENDENT VERIFICATION AUDIT", ["Check", "Result"], _build_audit_rows(report)
+        )
 
         return output.getvalue()
 
