@@ -150,7 +150,9 @@ describe('UI Primitives and Layout Components', () => {
 
     const scenariosMarkup = renderToStaticMarkup(
       <RouterProvider initialHash="#scenarios">
-        <ScenariosView />
+        <WorkspaceProvider>
+          <ScenariosView />
+        </WorkspaceProvider>
       </RouterProvider>
     );
     expect(scenariosMarkup).toContain('Scenario Branching &amp; Disruption Lab');
