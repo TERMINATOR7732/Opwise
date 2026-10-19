@@ -29,6 +29,9 @@ class OptimizeRequest(BaseModel):
         default="PURE_MAKESPAN",
         description="PURE_MAKESPAN | PURE_WEIGHTED_TARDINESS | HIERARCHICAL",
     )
+    current_time_minute: int = Field(
+        default=0, ge=0, description="Shop floor plant clock in minutes."
+    )
     parameters: OptimizeParameters = Field(default_factory=OptimizeParameters)
 
 
@@ -43,6 +46,7 @@ class ScheduledOperationResponse(BaseModel):
     end_minute: int
     duration: int
     slack_minutes: int = 0
+    status: str = "PLANNED"
 
 
 class ScheduleMetricsResponse(BaseModel):
@@ -107,6 +111,7 @@ class OptimizeResponseData(BaseModel):
     scheduled_operations: list[ScheduledOperationResponse] = Field(default_factory=list)
     downtimes: list[DowntimeResponse] = Field(default_factory=list)
     machines: list[ScheduleMachineResponse] = Field(default_factory=list)
+    current_time_minute: int = 0
 
 
 class ScheduleSummaryResponse(BaseModel):
@@ -122,6 +127,7 @@ class ScheduleSummaryResponse(BaseModel):
     weighted_tardiness: int
     late_order_count: int
     on_time_rate: float
+    current_time_minute: int = 0
     created_at: datetime
 
 
@@ -141,4 +147,5 @@ class ScheduleDetailResponse(BaseModel):
     scheduled_operations: list[ScheduledOperationResponse] = Field(default_factory=list)
     downtimes: list[DowntimeResponse] = Field(default_factory=list)
     machines: list[ScheduleMachineResponse] = Field(default_factory=list)
+    current_time_minute: int = 0
     created_at: datetime

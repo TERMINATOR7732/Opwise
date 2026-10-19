@@ -11,14 +11,17 @@ from opwise.domain.entities import (
     Machine,
     MachineDowntime,
     Operation,
+    OperationStatus,
     ProductionOrder,
 )
 
 
 def serialize_factory_snapshot(factory_data: Any) -> str:
     """Serialize factory machines, downtimes, and orders into JSON string."""
+    clock = getattr(factory_data, "current_time_minute", 0)
     return json.dumps(
         {
+            "current_time_minute": clock,
             "machines": [{"id": m.id, "name": m.name} for m in factory_data.machines],
             "downtimes": [
                 {
@@ -42,6 +45,10 @@ def serialize_factory_snapshot(factory_data: Any) -> str:
                             "seq": op.sequence_number,
                             "m": op.machine_id,
                             "dur": op.processing_duration_minutes,
+                            "status": op.status.value if hasattr(op.status, "value") else str(op.status or "PLANNED"),
+                            "actual_start": op.actual_start_minute,
+                            "actual_end": op.actual_end_minute,
+                            "rem_dur": op.remaining_duration_minutes,
                         }
                         for op in o.operations
                     ],
@@ -56,6 +63,10 @@ def reconstruct_factory_from_snapshot(workspace_id: str, snapshot_str: str) -> F
     """Reconstruct a domain Factory entity from an immutable input snapshot JSON string."""
     try:
         data = json.loads(snapshot_str)
+        clock = data.get("current_time_minute", 0)
+        if not isinstance(clock, int) or clock < 0:
+            return None
+
         machines = [Machine(id=m["id"], name=m["name"]) for m in data.get("machines", [])]
         downtimes = [
             MachineDowntime(
@@ -67,17 +78,30 @@ def reconstruct_factory_from_snapshot(workspace_id: str, snapshot_str: str) -> F
             for dt in data.get("downtimes", [])
         ]
         orders: list[ProductionOrder] = []
+        valid_statuses = {s.value for s in OperationStatus}
         for o in data.get("orders", []):
-            ops = [
-                Operation(
-                    id=op["id"],
-                    order_id=o["id"],
-                    sequence_number=op["seq"],
-                    machine_id=op["m"],
-                    processing_duration_minutes=op["dur"],
+            ops: list[Operation] = []
+            for op in o.get("operations", []):
+                raw_status = op.get("status", "PLANNED")
+                if raw_status not in valid_statuses:
+                    return None
+                status = OperationStatus(raw_status)
+                actual_start = op.get("actual_start")
+                actual_end = op.get("actual_end")
+                rem_dur = op.get("rem_dur")
+                ops.append(
+                    Operation(
+                        id=op["id"],
+                        order_id=o["id"],
+                        sequence_number=op["seq"],
+                        machine_id=op["m"],
+                        processing_duration_minutes=op["dur"],
+                        status=status,
+                        actual_start_minute=actual_start,
+                        actual_end_minute=actual_end,
+                        remaining_duration_minutes=rem_dur,
+                    )
                 )
-                for op in o.get("operations", [])
-            ]
             orders.append(
                 ProductionOrder(
                     id=o["id"],
@@ -88,7 +112,13 @@ def reconstruct_factory_from_snapshot(workspace_id: str, snapshot_str: str) -> F
                     operations=ops,
                 )
             )
-        return Factory(workspace_id=workspace_id, machines=machines, downtimes=downtimes, orders=orders)
+        return Factory(
+            workspace_id=workspace_id,
+            machines=machines,
+            downtimes=downtimes,
+            orders=orders,
+            current_time_minute=clock,
+        )
     except Exception:
         return None
 

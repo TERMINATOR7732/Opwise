@@ -16,6 +16,7 @@ from opwise.domain.entities import (
     MachineDowntime,
     ObjectiveMode,
     Operation,
+    OperationStatus,
     ProductionOrder,
     Schedule,
     ScheduledOperation,
@@ -100,6 +101,10 @@ def _map_workspace_to_factory(ws: WorkspaceModel) -> Factory:
                     sequence_number=op.sequence_index,
                     machine_id=op.machine_id,
                     processing_duration_minutes=op.processing_minutes,
+                    status=OperationStatus(op.status) if op.status else OperationStatus.PLANNED,
+                    actual_start_minute=op.actual_start_minute,
+                    actual_end_minute=op.actual_end_minute,
+                    remaining_duration_minutes=op.remaining_duration_minutes,
                 )
                 for op in o.operations
             ],
@@ -244,6 +249,7 @@ class ScheduleRepository:
             solver_wall_clock_seconds=wall_clock_seconds,
             solver_deterministic_time=deterministic_time,
             input_snapshot_json=input_snapshot_json,
+            current_time_minute=schedule.current_time_minute,
         )
 
     async def save_schedule(
@@ -287,6 +293,7 @@ class ScheduleRepository:
                 end_minute=op.end_minute,
                 processing_duration_minutes=op.processing_duration_minutes,
                 slack_minutes=op.slack_minutes,
+                status=op.status.value if isinstance(op.status, OperationStatus) else str(op.status),
             )
             self.session.add(op_model)
 
@@ -311,6 +318,7 @@ class ScheduleRepository:
                 end_minute=op.end_minute,
                 processing_duration_minutes=op.processing_duration_minutes,
                 slack_minutes=op.slack_minutes,
+                status=OperationStatus(op.status) if hasattr(op, "status") and op.status else OperationStatus.PLANNED,
             )
             for op in model.scheduled_operations
         ]
@@ -322,4 +330,5 @@ class ScheduleRepository:
             kpis=kpis,
             scheduled_operations=scheduled_ops,
             verified=model.verification_status == "VERIFIED",
+            current_time_minute=model.current_time_minute,
         )

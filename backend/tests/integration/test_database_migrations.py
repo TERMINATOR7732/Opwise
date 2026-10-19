@@ -212,8 +212,8 @@ async def test_migration_from_prior_schema_to_head() -> None:
 
         await engine.dispose()
 
-        # 2. Upgrade from prior schema to head (002_add_import_jobs_index)
-        command.upgrade(cfg, "head")
+        # 2. Upgrade from prior schema to 002_add_import_jobs_index
+        command.upgrade(cfg, "002_add_import_jobs_index")
 
         engine = create_database_engine(settings)
         async with engine.connect() as conn:

@@ -153,6 +153,7 @@ class OptimizationService:
             ),
             verification_report=None,
             scheduled_operations=[],
+            current_time_minute=req.current_time_minute,
         )
 
     async def optimize(self, workspace_id: str, request: OptimizeRequest) -> OptimizeResponseData:
@@ -164,6 +165,7 @@ class OptimizationService:
         factory = await self.factory_repo.get_factory(workspace_id)
         if factory is None:
             raise EmptyWorkspaceError()
+        factory.current_time_minute = request.current_time_minute
 
         mode = self._map_objective_mode(request.objective_type)
         cfg = SolverConfig(
@@ -179,6 +181,7 @@ class OptimizationService:
             return await self._handle_unsuccessful_solve(workspace_id, factory, request, mode, result)
 
         sched = result.schedule
+        sched.current_time_minute = factory.current_time_minute
         metrics = calculate_schedule_metrics(factory, sched)
         v_rep = result.verification_report
         snapshot_json = serialize_factory_snapshot(factory)
@@ -219,6 +222,7 @@ class OptimizationService:
             kpis=ScheduleKPIs(0, 0, 0, 0.0),
             scheduled_operations=[],
             verified=False,
+            current_time_minute=factory.current_time_minute,
         )
         stage_telem = self._extract_stage_telemetry(result)
         await self.schedule_repo.save_schedule(
@@ -269,6 +273,7 @@ class OptimizationService:
                 end_minute=op.end_minute,
                 duration=op.processing_duration_minutes,
                 slack_minutes=op.slack_minutes,
+                status=op.status.value if hasattr(op.status, "value") else str(op.status),
             )
             for op in sched.scheduled_operations
         ]
@@ -302,6 +307,7 @@ class OptimizationService:
             scheduled_operations=ops_resp,
             downtimes=downtimes,
             machines=machines,
+            current_time_minute=saved_model.current_time_minute,
         )
 
 

@@ -19,7 +19,14 @@ from opwise.api.schemas.factory import (
     OrderCreate,
     OrderResponse,
 )
-from opwise.domain.entities import Factory, Machine, MachineDowntime, Operation, ProductionOrder
+from opwise.domain.entities import (
+    Factory,
+    Machine,
+    MachineDowntime,
+    Operation,
+    OperationStatus,
+    ProductionOrder,
+)
 from opwise.domain.exceptions import (
     DomainError,
     InvalidIntervalError,
@@ -47,6 +54,10 @@ def _map_order_models_to_response(orders: list[ProductionOrderModel]) -> list[Or
                 sequence_index=op.sequence_index,
                 machine_id=op.machine_id,
                 processing_minutes=op.processing_minutes,
+                status=op.status,
+                actual_start_minute=op.actual_start_minute,
+                actual_end_minute=op.actual_end_minute,
+                remaining_duration_minutes=op.remaining_duration_minutes,
             )
             for op in o.operations
         ]
@@ -152,6 +163,10 @@ class FactoryService:
                         sequence_index=op_in.sequence_index,
                         machine_id=ext_to_id[op_in.machine_id],
                         processing_minutes=op_in.processing_minutes,
+                        status=op_in.status,
+                        actual_start_minute=op_in.actual_start_minute,
+                        actual_end_minute=op_in.actual_end_minute,
+                        remaining_duration_minutes=op_in.remaining_duration_minutes,
                     )
                 )
             order_models.append(
@@ -208,13 +223,23 @@ class FactoryService:
                         sequence_number=op.sequence_index,
                         machine_id=op.machine_id,
                         processing_duration_minutes=op.processing_minutes,
+                        status=OperationStatus(op.status) if hasattr(op, "status") and op.status else OperationStatus.PLANNED,
+                        actual_start_minute=op.actual_start_minute,
+                        actual_end_minute=op.actual_end_minute,
+                        remaining_duration_minutes=op.remaining_duration_minutes,
                     )
                     for op in o.operations
                 ],
             )
             for o in payload.orders
         ]
-        return Factory(workspace_id=workspace_id, machines=machines, downtimes=downtimes, orders=orders)
+        return Factory(
+            workspace_id=workspace_id,
+            machines=machines,
+            downtimes=downtimes,
+            orders=orders,
+            current_time_minute=payload.current_time_minute,
+        )
 
     async def validate_factory_config(
         self, workspace_id: str, payload: FactoryConfigPayload

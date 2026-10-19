@@ -152,6 +152,25 @@ class OperationModel(Base):
         UniqueConstraint("order_id", "sequence_index", name="uq_operations_order_sequence"),
         CheckConstraint("sequence_index >= 1", name="chk_op_sequence_positive"),
         CheckConstraint("processing_minutes >= 1", name="chk_op_processing_positive"),
+        CheckConstraint("status IN ('PLANNED', 'IN_PROGRESS', 'COMPLETED')", name="chk_op_status"),
+        CheckConstraint(
+            "actual_start_minute IS NULL OR actual_start_minute >= 0",
+            name="chk_op_actual_start_non_negative",
+        ),
+        CheckConstraint(
+            "actual_end_minute IS NULL OR actual_start_minute IS NULL OR actual_end_minute > actual_start_minute",
+            name="chk_op_actual_end_gt_start",
+        ),
+        CheckConstraint(
+            "remaining_duration_minutes IS NULL OR remaining_duration_minutes >= 1",
+            name="chk_op_remaining_duration_positive",
+        ),
+        CheckConstraint(
+            "(status = 'PLANNED' AND actual_start_minute IS NULL AND actual_end_minute IS NULL AND remaining_duration_minutes IS NULL) OR "
+            "(status = 'IN_PROGRESS' AND actual_start_minute IS NOT NULL AND actual_end_minute IS NULL AND remaining_duration_minutes IS NOT NULL) OR "
+            "(status = 'COMPLETED' AND actual_start_minute IS NOT NULL AND actual_end_minute IS NOT NULL AND remaining_duration_minutes IS NULL)",
+            name="chk_op_lifecycle_consistency",
+        ),
         Index("ix_operations_order_id", "order_id"),
         Index("ix_operations_machine_id", "machine_id"),
     )
@@ -165,6 +184,10 @@ class OperationModel(Base):
         String(36), ForeignKey("machines.id", ondelete="RESTRICT"), nullable=False
     )
     processing_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="PLANNED")
+    actual_start_minute: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    actual_end_minute: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    remaining_duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     order: Mapped[ProductionOrderModel] = relationship("ProductionOrderModel", back_populates="operations")
     machine: Mapped[MachineModel] = relationship("MachineModel")
@@ -175,6 +198,7 @@ class ScheduleModel(Base):
 
     __tablename__ = "schedules"
     __table_args__ = (
+        CheckConstraint("current_time_minute >= 0", name="chk_schedule_current_time_non_negative"),
         Index("ix_schedules_workspace_created", "workspace_id", "created_at"),
     )
 
@@ -204,6 +228,7 @@ class ScheduleModel(Base):
     solver_wall_clock_seconds: Mapped[float] = mapped_column(Float, nullable=False)
     solver_deterministic_time: Mapped[float | None] = mapped_column(Float, nullable=True)
     input_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False)
+    current_time_minute: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utc_now)
 
     workspace: Mapped[WorkspaceModel] = relationship("WorkspaceModel", back_populates="schedules")
@@ -222,6 +247,7 @@ class ScheduledOperationModel(Base):
     __table_args__ = (
         CheckConstraint("start_minute >= 0", name="chk_sched_op_start_non_negative"),
         CheckConstraint("end_minute > start_minute", name="chk_sched_op_end_gt_start"),
+        CheckConstraint("status IN ('PLANNED', 'IN_PROGRESS', 'COMPLETED')", name="chk_sched_op_status"),
         Index("ix_scheduled_ops_machine_start", "schedule_id", "machine_id", "start_minute"),
         Index("ix_scheduled_ops_order", "schedule_id", "order_id"),
     )
@@ -238,6 +264,7 @@ class ScheduledOperationModel(Base):
     end_minute: Mapped[int] = mapped_column(Integer, nullable=False)
     processing_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
     slack_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="PLANNED")
 
     schedule: Mapped[ScheduleModel] = relationship("ScheduleModel", back_populates="scheduled_operations")
 

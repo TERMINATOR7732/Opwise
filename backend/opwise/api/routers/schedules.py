@@ -66,6 +66,7 @@ def _build_schedule_detail(m: ScheduleModel) -> ScheduleDetailResponse:
             end_minute=op.end_minute,
             duration=op.processing_duration_minutes,
             slack_minutes=op.slack_minutes,
+            status=op.status,
         )
         for op in m.scheduled_operations
     ]
@@ -100,6 +101,7 @@ def _build_schedule_detail(m: ScheduleModel) -> ScheduleDetailResponse:
         scheduled_operations=ops,
         downtimes=downtimes,
         machines=machines,
+        current_time_minute=m.current_time_minute,
         created_at=m.created_at,
     )
 
@@ -129,6 +131,7 @@ async def list_schedules(
             weighted_tardiness=m.weighted_tardiness,
             late_order_count=m.late_order_count,
             on_time_rate=m.on_time_rate,
+            current_time_minute=m.current_time_minute,
             created_at=m.created_at,
         )
         for m in models

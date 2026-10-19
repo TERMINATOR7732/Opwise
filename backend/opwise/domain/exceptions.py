@@ -13,6 +13,11 @@ class OpwiseError(Exception):
         self.error_code = error_code
         self.status_code = status_code
 
+    @property
+    def code(self) -> str:
+        """Alias for error_code for compatibility."""
+        return self.error_code
+
 
 class DomainError(OpwiseError):
     """Base exception for domain modeling and validation failures."""
@@ -120,5 +125,12 @@ class DataExchangeError(OpwiseError):
 
     def __init__(self, message: str, status_code: int = 400) -> None:
         super().__init__(message=message, error_code="INVALID_DATA_EXCHANGE", status_code=status_code)
+
+
+class LifecycleStateError(DomainError):
+    """Raised when an operation's lifecycle status or execution timestamps violate invariants."""
+
+    def __init__(self, message: str, error_code: str = "INVALID_LIFECYCLE_STATE") -> None:
+        super().__init__(message=message, error_code=error_code, status_code=422)
 
 

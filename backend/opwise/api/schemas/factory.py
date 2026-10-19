@@ -49,6 +49,12 @@ class OperationCreate(BaseModel):
     sequence_index: int = Field(..., ge=1, description="1-based sequence number.")
     machine_id: str = Field(..., description="Target machine external_id or id.")
     processing_minutes: int = Field(..., ge=1, description="Duration in minutes.")
+    status: str = Field(default="PLANNED", description="Operation status: PLANNED, IN_PROGRESS, COMPLETED.")
+    actual_start_minute: int | None = Field(default=None, ge=0, description="Actual start time in minutes.")
+    actual_end_minute: int | None = Field(default=None, ge=0, description="Actual end time in minutes.")
+    remaining_duration_minutes: int | None = Field(
+        default=None, ge=1, description="Remaining duration in minutes for in-progress operations."
+    )
 
 
 class OperationResponse(BaseModel):
@@ -59,6 +65,10 @@ class OperationResponse(BaseModel):
     sequence_index: int
     machine_id: str
     processing_minutes: int
+    status: str = "PLANNED"
+    actual_start_minute: int | None = None
+    actual_end_minute: int | None = None
+    remaining_duration_minutes: int | None = None
 
 
 class OrderCreate(BaseModel):
@@ -87,6 +97,7 @@ class OrderResponse(BaseModel):
 class FactoryConfigPayload(BaseModel):
     """Full factory configuration replacement payload."""
 
+    current_time_minute: int = Field(default=0, ge=0, description="Plant clock in minutes.")
     machines: list[MachineCreate] = Field(default_factory=list)
     downtimes: list[DowntimeCreate] = Field(default_factory=list)
     orders: list[OrderCreate] = Field(default_factory=list)
@@ -96,6 +107,7 @@ class FactoryConfigResponse(BaseModel):
     """Full factory configuration response."""
 
     workspace_id: str
+    current_time_minute: int = 0
     machines: list[MachineResponse] = Field(default_factory=list)
     downtimes: list[DowntimeResponse] = Field(default_factory=list)
     orders: list[OrderResponse] = Field(default_factory=list)

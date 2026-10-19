@@ -8,6 +8,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 
+class OperationStatus(str, Enum):
+    """Lifecycle execution status of a manufacturing operation."""
+
+    PLANNED = "PLANNED"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+
+
 class ScheduleStatus(str, Enum):
     """Execution status of a production schedule."""
 
@@ -84,6 +92,10 @@ class Operation:
     sequence_number: int
     machine_id: str
     processing_duration_minutes: int
+    status: OperationStatus = OperationStatus.PLANNED
+    actual_start_minute: int | None = None
+    actual_end_minute: int | None = None
+    remaining_duration_minutes: int | None = None
 
 
 @dataclass
@@ -111,6 +123,7 @@ class Factory:
     machines: list[Machine] = field(default_factory=list)
     downtimes: list[MachineDowntime] = field(default_factory=list)
     orders: list[ProductionOrder] = field(default_factory=list)
+    current_time_minute: int = 0
 
     def get_machine(self, machine_id: str) -> Machine | None:
         """Retrieve a machine by its ID."""
@@ -139,6 +152,7 @@ class ScheduledOperation:
     end_minute: int
     processing_duration_minutes: int
     slack_minutes: int = 0
+    status: OperationStatus = OperationStatus.PLANNED
 
 
 @dataclass(frozen=True)
@@ -162,3 +176,4 @@ class Schedule:
     kpis: ScheduleKPIs
     scheduled_operations: list[ScheduledOperation] = field(default_factory=list)
     verified: bool = False
+    current_time_minute: int = 0
