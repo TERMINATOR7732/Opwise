@@ -29,8 +29,8 @@ class OptimizeRequest(BaseModel):
         default="PURE_MAKESPAN",
         description="PURE_MAKESPAN | PURE_WEIGHTED_TARDINESS | HIERARCHICAL",
     )
-    current_time_minute: int = Field(
-        default=0, ge=0, description="Shop floor plant clock in minutes."
+    current_time_minute: int | None = Field(
+        default=None, ge=0, description="Shop floor plant clock in minutes. If omitted, uses persisted factory clock."
     )
     parameters: OptimizeParameters = Field(default_factory=OptimizeParameters)
 

@@ -87,9 +87,13 @@ class FactoryService:
         """Fetch complete factory configuration for a workspace."""
         ws = await self.factory_repo.get_factory_models(workspace_id)
         if ws is None:
-            if await self.workspace_repo.get_by_id(workspace_id) is None:
+            ws_entity = await self.workspace_repo.get_by_id(workspace_id)
+            if ws_entity is None:
                 raise ResourceNotFoundError("Workspace", workspace_id)
-            return FactoryConfigResponse(workspace_id=workspace_id)
+            return FactoryConfigResponse(
+                workspace_id=workspace_id,
+                current_time_minute=ws_entity.current_time_minute,
+            )
 
         machines = [
             MachineResponse(id=m.id, external_id=m.external_id, name=m.name, created_at=m.created_at)
@@ -108,6 +112,7 @@ class FactoryService:
         ]
         return FactoryConfigResponse(
             workspace_id=workspace_id,
+            current_time_minute=ws.current_time_minute,
             machines=machines,
             downtimes=downtimes,
             orders=_map_order_models_to_response(ws.orders),
@@ -193,11 +198,19 @@ class FactoryService:
         machines, ext_to_id = self._build_machine_models(payload.machines, payload.downtimes)
         orders = self._build_order_models(payload.orders, ext_to_id)
 
-        await self.factory_repo.replace_factory(workspace_id, machines, orders)
+        await self.factory_repo.replace_factory(
+            workspace_id,
+            machines,
+            orders,
+            current_time_minute=payload.current_time_minute,
+        )
         return await self.get_factory_config(workspace_id)
 
-    def _payload_to_factory(self, workspace_id: str, payload: FactoryConfigPayload) -> Factory:
+    def _payload_to_factory(
+        self, workspace_id: str, payload: FactoryConfigPayload, current_time_minute: int = 0
+    ) -> Factory:
         """Map API payload to pure Factory domain object for dry-run validation."""
+        clock = payload.current_time_minute if payload.current_time_minute is not None else current_time_minute
         machines = [Machine(id=m.external_id, name=m.name) for m in payload.machines]
         downtimes = [
             MachineDowntime(
@@ -238,14 +251,16 @@ class FactoryService:
             machines=machines,
             downtimes=downtimes,
             orders=orders,
-            current_time_minute=payload.current_time_minute,
+            current_time_minute=clock,
         )
 
     async def validate_factory_config(
         self, workspace_id: str, payload: FactoryConfigPayload
     ) -> FactoryValidationResponse:
         """Perform dry-run structural validation of factory inputs."""
-        factory = self._payload_to_factory(workspace_id, payload)
+        ws = await self.workspace_repo.get_by_id(workspace_id)
+        current_clock = ws.current_time_minute if ws is not None else 0
+        factory = self._payload_to_factory(workspace_id, payload, current_time_minute=current_clock)
         try:
             res = validate_factory_for_optimization(factory)
             return FactoryValidationResponse(

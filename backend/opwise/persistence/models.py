@@ -38,10 +38,14 @@ class WorkspaceModel(Base):
     """Root tenant boundary for multi-scenario planning."""
 
     __tablename__ = "workspaces"
+    __table_args__ = (
+        CheckConstraint("current_time_minute >= 0", name="chk_workspace_current_time_non_negative"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_generate_uuid)
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    current_time_minute: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utc_now, onupdate=_utc_now)
 

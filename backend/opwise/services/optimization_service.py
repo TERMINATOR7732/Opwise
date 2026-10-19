@@ -121,7 +121,12 @@ class OptimizationService:
         return st1, st2
 
     def _build_unsuccessful_response(
-        self, schedule_id: str, name: str, req: OptimizeRequest, result: SolverResult
+        self,
+        schedule_id: str,
+        name: str,
+        req: OptimizeRequest,
+        result: SolverResult,
+        current_time_minute: int = 0,
     ) -> OptimizeResponseData:
         """Format response for an unsuccessful model outcome (infeasible, timeout, etc)."""
         term_reason = (
@@ -153,7 +158,7 @@ class OptimizationService:
             ),
             verification_report=None,
             scheduled_operations=[],
-            current_time_minute=req.current_time_minute,
+            current_time_minute=current_time_minute,
         )
 
     async def optimize(self, workspace_id: str, request: OptimizeRequest) -> OptimizeResponseData:
@@ -165,7 +170,8 @@ class OptimizationService:
         factory = await self.factory_repo.get_factory(workspace_id)
         if factory is None:
             raise EmptyWorkspaceError()
-        factory.current_time_minute = request.current_time_minute
+        if request.current_time_minute is not None:
+            factory.current_time_minute = request.current_time_minute
 
         mode = self._map_objective_mode(request.objective_type)
         cfg = SolverConfig(
@@ -238,7 +244,9 @@ class OptimizationService:
             optimality_gap=None,
             verification_status="SKIPPED",
         )
-        return self._build_unsuccessful_response(unsuccessful_id, request.name, request, result)
+        return self._build_unsuccessful_response(
+            unsuccessful_id, request.name, request, result, current_time_minute=factory.current_time_minute
+        )
 
     def _build_metrics_response(
         self, metrics: ProductionScheduleMetrics, result: SolverResult

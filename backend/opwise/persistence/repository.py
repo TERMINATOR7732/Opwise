@@ -56,9 +56,15 @@ class WorkspaceRepository:
         res = await self.session.execute(stmt)
         return list(res.scalars().all())
 
-    async def create(self, name: str, description: str | None = None) -> WorkspaceModel:
+    async def create(
+        self, name: str, description: str | None = None, current_time_minute: int = 0
+    ) -> WorkspaceModel:
         """Create and persist a new workspace."""
-        ws = WorkspaceModel(name=name, description=description)
+        ws = WorkspaceModel(
+            name=name,
+            description=description,
+            current_time_minute=current_time_minute,
+        )
         self.session.add(ws)
         await self.session.flush()
         return ws
@@ -111,7 +117,13 @@ def _map_workspace_to_factory(ws: WorkspaceModel) -> Factory:
         )
         for o in ws.orders
     ]
-    return Factory(workspace_id=ws.id, machines=machines, downtimes=downtimes, orders=orders)
+    return Factory(
+        workspace_id=ws.id,
+        machines=machines,
+        downtimes=downtimes,
+        orders=orders,
+        current_time_minute=ws.current_time_minute,
+    )
 
 
 class FactoryRepository:
@@ -145,8 +157,14 @@ class FactoryRepository:
         workspace_id: str,
         machines: list[MachineModel],
         orders: list[ProductionOrderModel],
+        current_time_minute: int | None = None,
     ) -> None:
         """Atomically replace all machines, downtimes, orders, and ops in a workspace."""
+        if current_time_minute is not None:
+            ws = await self.session.get(WorkspaceModel, workspace_id)
+            if ws is not None:
+                ws.current_time_minute = current_time_minute
+
         # Delete existing orders and machines (cascading to ops and downtimes)
         await self.session.execute(
             delete(ProductionOrderModel).where(ProductionOrderModel.workspace_id == workspace_id)

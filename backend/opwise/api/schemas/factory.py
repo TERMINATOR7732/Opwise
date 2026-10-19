@@ -97,7 +97,9 @@ class OrderResponse(BaseModel):
 class FactoryConfigPayload(BaseModel):
     """Full factory configuration replacement payload."""
 
-    current_time_minute: int = Field(default=0, ge=0, description="Plant clock in minutes.")
+    current_time_minute: int | None = Field(
+        default=None, ge=0, description="Plant clock in minutes. If omitted, existing factory clock is retained."
+    )
     machines: list[MachineCreate] = Field(default_factory=list)
     downtimes: list[DowntimeCreate] = Field(default_factory=list)
     orders: list[OrderCreate] = Field(default_factory=list)

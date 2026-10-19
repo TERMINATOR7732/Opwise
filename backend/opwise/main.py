@@ -24,7 +24,7 @@ from opwise.config import Settings, get_settings
 from opwise.domain.exceptions import OpwiseError
 from opwise.persistence.database import create_database_engine, create_session_factory
 
-EXPECTED_ALEMBIC_REVISION = "003_add_lifecycle_clock"
+EXPECTED_ALEMBIC_REVISION = "004_add_workspace_clock"
 
 
 async def verify_database_schema(
