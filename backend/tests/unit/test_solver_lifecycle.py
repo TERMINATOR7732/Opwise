@@ -390,3 +390,306 @@ def test_lexicographic_solve_with_mixed_lifecycle() -> None:
     assert result.stage2_status == ScheduleStatus.OPTIMAL
     assert result.schedule.kpis.total_weighted_tardiness == 25
     assert result.schedule.kpis.makespan_minutes == 65
+
+
+def test_chain_completed_to_in_progress() -> None:
+    """Precedence Chain 5: Completed predecessor followed by In-Progress successor."""
+    clock = 40
+    m1 = _make_machine("M1")
+    m2 = _make_machine("M2")
+
+    # Order 1: Op 1 COMPLETED [0, 25) on M1, Op 2 IN_PROGRESS [25, clock=40) remaining 20 on M2
+    op1 = Operation(
+        id="op1",
+        order_id="ord1",
+        sequence_number=1,
+        machine_id="M1",
+        processing_duration_minutes=25,
+        status=OperationStatus.COMPLETED,
+        actual_start_minute=0,
+        actual_end_minute=25,
+    )
+    op2 = Operation(
+        id="op2",
+        order_id="ord1",
+        sequence_number=2,
+        machine_id="M2",
+        processing_duration_minutes=35,
+        status=OperationStatus.IN_PROGRESS,
+        actual_start_minute=25,
+        remaining_duration_minutes=20,
+    )
+    order1 = ProductionOrder(
+        id="ord1",
+        order_code="J1",
+        release_time_minutes=0,
+        due_date_minutes=80,
+        tardiness_weight=1,
+        operations=[op1, op2],
+    )
+
+    factory = Factory(
+        workspace_id="ws-test",
+        machines=[m1, m2],
+        downtimes=[],
+        orders=[order1],
+        current_time_minute=clock,
+    )
+
+    scheduler = CPSATScheduler()
+    result = scheduler.solve(factory, ObjectiveMode.PURE_MAKESPAN)
+
+    assert result.status == ScheduleStatus.OPTIMAL
+    assert result.schedule is not None
+    assert result.schedule.verified is True
+
+    ops_by_id = {op.operation_id: op for op in result.schedule.scheduled_operations}
+    assert ops_by_id["op1"].end_minute == 25
+    assert ops_by_id["op2"].start_minute == 25
+    assert ops_by_id["op2"].end_minute == clock + 20  # 60
+    assert ops_by_id["op2"].start_minute >= ops_by_id["op1"].end_minute
+
+
+def test_chain_multiple_completed_to_planned() -> None:
+    """Precedence Chain 6: Multiple completed operations preceding a planned successor."""
+    clock = 50
+    m1 = _make_machine("M1")
+    m2 = _make_machine("M2")
+
+    # Order 1: Op 1 COMPLETED [0, 15) on M1, Op 2 COMPLETED [15, 30) on M2, Op 3 PLANNED (duration 25) on M1
+    op1 = Operation(
+        id="op1",
+        order_id="ord1",
+        sequence_number=1,
+        machine_id="M1",
+        processing_duration_minutes=15,
+        status=OperationStatus.COMPLETED,
+        actual_start_minute=0,
+        actual_end_minute=15,
+    )
+    op2 = Operation(
+        id="op2",
+        order_id="ord1",
+        sequence_number=2,
+        machine_id="M2",
+        processing_duration_minutes=15,
+        status=OperationStatus.COMPLETED,
+        actual_start_minute=15,
+        actual_end_minute=30,
+    )
+    op3 = Operation(
+        id="op3",
+        order_id="ord1",
+        sequence_number=3,
+        machine_id="M1",
+        processing_duration_minutes=25,
+        status=OperationStatus.PLANNED,
+    )
+    order1 = ProductionOrder(
+        id="ord1",
+        order_code="J1",
+        release_time_minutes=0,
+        due_date_minutes=100,
+        tardiness_weight=1,
+        operations=[op1, op2, op3],
+    )
+
+    factory = Factory(
+        workspace_id="ws-test",
+        machines=[m1, m2],
+        downtimes=[],
+        orders=[order1],
+        current_time_minute=clock,
+    )
+
+    scheduler = CPSATScheduler()
+    result = scheduler.solve(factory, ObjectiveMode.PURE_MAKESPAN)
+
+    assert result.status == ScheduleStatus.OPTIMAL
+    assert result.schedule is not None
+    assert result.schedule.verified is True
+
+    ops_by_id = {op.operation_id: op for op in result.schedule.scheduled_operations}
+    assert ops_by_id["op1"].end_minute == 15
+    assert ops_by_id["op2"].end_minute == 30
+    # Op 3 must start >= max(clock=50, op2.end=30) = 50
+    assert ops_by_id["op3"].start_minute == clock  # 50
+    assert ops_by_id["op3"].end_minute == 75
+
+
+def test_chain_completed_to_in_progress_to_planned() -> None:
+    """Precedence Chain 7: Completed -> In-Progress -> Planned chain."""
+    clock = 35
+    m1 = _make_machine("M1")
+    m2 = _make_machine("M2")
+
+    # Order 1: Op 1 COMPLETED [0, 20) on M1, Op 2 IN_PROGRESS [20, 35) remaining 15 on M2 -> ends 50, Op 3 PLANNED (dur 20) on M1
+    op1 = Operation(
+        id="op1",
+        order_id="ord1",
+        sequence_number=1,
+        machine_id="M1",
+        processing_duration_minutes=20,
+        status=OperationStatus.COMPLETED,
+        actual_start_minute=0,
+        actual_end_minute=20,
+    )
+    op2 = Operation(
+        id="op2",
+        order_id="ord1",
+        sequence_number=2,
+        machine_id="M2",
+        processing_duration_minutes=30,
+        status=OperationStatus.IN_PROGRESS,
+        actual_start_minute=20,
+        remaining_duration_minutes=15,
+    )
+    op3 = Operation(
+        id="op3",
+        order_id="ord1",
+        sequence_number=3,
+        machine_id="M1",
+        processing_duration_minutes=20,
+        status=OperationStatus.PLANNED,
+    )
+    order1 = ProductionOrder(
+        id="ord1",
+        order_code="J1",
+        release_time_minutes=0,
+        due_date_minutes=100,
+        tardiness_weight=1,
+        operations=[op1, op2, op3],
+    )
+
+    factory = Factory(
+        workspace_id="ws-test",
+        machines=[m1, m2],
+        downtimes=[],
+        orders=[order1],
+        current_time_minute=clock,
+    )
+
+    scheduler = CPSATScheduler()
+    result = scheduler.solve(factory, ObjectiveMode.PURE_MAKESPAN)
+
+    assert result.status == ScheduleStatus.OPTIMAL
+    assert result.schedule is not None
+    assert result.schedule.verified is True
+
+    ops_by_id = {op.operation_id: op for op in result.schedule.scheduled_operations}
+    assert ops_by_id["op1"].end_minute == 20
+    assert ops_by_id["op2"].start_minute == 20
+    assert ops_by_id["op2"].end_minute == clock + 15  # 50
+    # Op 3 cannot start until Op 2 expected completion at 50
+    assert ops_by_id["op3"].start_minute >= 50
+    assert ops_by_id["op3"].start_minute == 50
+    assert ops_by_id["op3"].end_minute == 70
+
+
+def test_chain_successor_with_later_clock_or_release() -> None:
+    """Precedence Chain 9: Successor whose earliest start is constrained by plant clock beyond predecessor end."""
+    clock = 60
+    m1 = _make_machine("M1")
+    m2 = _make_machine("M2")
+
+    # Op 1 completed early at [0, 20) on M1. Clock is 60.
+    op1 = Operation(
+        id="op1",
+        order_id="ord1",
+        sequence_number=1,
+        machine_id="M1",
+        processing_duration_minutes=20,
+        status=OperationStatus.COMPLETED,
+        actual_start_minute=0,
+        actual_end_minute=20,
+    )
+    op2 = Operation(
+        id="op2",
+        order_id="ord1",
+        sequence_number=2,
+        machine_id="M2",
+        processing_duration_minutes=20,
+        status=OperationStatus.PLANNED,
+    )
+    order1 = ProductionOrder(
+        id="ord1",
+        order_code="J1",
+        release_time_minutes=0,
+        due_date_minutes=100,
+        tardiness_weight=1,
+        operations=[op1, op2],
+    )
+
+    factory = Factory(
+        workspace_id="ws-test",
+        machines=[m1, m2],
+        downtimes=[],
+        orders=[order1],
+        current_time_minute=clock,
+    )
+
+    scheduler = CPSATScheduler()
+    result = scheduler.solve(factory, ObjectiveMode.PURE_MAKESPAN)
+
+    assert result.status == ScheduleStatus.OPTIMAL
+    assert result.schedule is not None
+    ops_by_id = {op.operation_id: op for op in result.schedule.scheduled_operations}
+    # Predecessor completed at 20, but Op 2 cannot start before clock 60
+    assert ops_by_id["op2"].start_minute == clock  # 60
+    assert ops_by_id["op2"].end_minute == 80
+
+
+def test_chain_exact_boundary_contact() -> None:
+    """Precedence Chain 10: Predecessor completion exactly at successor start boundary."""
+    clock = 40
+    m1 = _make_machine("M1")
+
+    # Op 1 completed [10, 40) on M1. Clock is 40.
+    op1 = Operation(
+        id="op1",
+        order_id="ord1",
+        sequence_number=1,
+        machine_id="M1",
+        processing_duration_minutes=30,
+        status=OperationStatus.COMPLETED,
+        actual_start_minute=10,
+        actual_end_minute=40,
+    )
+    # Op 2 is PLANNED (duration 20) on M1. Meets Op 1 at exact boundary 40!
+    op2 = Operation(
+        id="op2",
+        order_id="ord1",
+        sequence_number=2,
+        machine_id="M1",
+        processing_duration_minutes=20,
+        status=OperationStatus.PLANNED,
+    )
+    order1 = ProductionOrder(
+        id="ord1",
+        order_code="J1",
+        release_time_minutes=0,
+        due_date_minutes=100,
+        tardiness_weight=1,
+        operations=[op1, op2],
+    )
+
+    factory = Factory(
+        workspace_id="ws-test",
+        machines=[m1],
+        downtimes=[],
+        orders=[order1],
+        current_time_minute=clock,
+    )
+
+    scheduler = CPSATScheduler()
+    result = scheduler.solve(factory, ObjectiveMode.PURE_MAKESPAN)
+
+    assert result.status == ScheduleStatus.OPTIMAL
+    assert result.schedule is not None
+    assert result.schedule.verified is True
+
+    ops_by_id = {op.operation_id: op for op in result.schedule.scheduled_operations}
+    assert ops_by_id["op1"].end_minute == 40
+    assert ops_by_id["op2"].start_minute == 40
+    assert ops_by_id["op2"].end_minute == 60
+

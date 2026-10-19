@@ -197,9 +197,25 @@ def audit_duration_and_machine(
 def audit_release_times(
     factory: Factory,
     scheduled_ops: list[ScheduledOperation],
+    schedule_clock: int | None = None,
 ) -> list[InvariantViolation]:
-    """Invariant 3: First operation of an order must start at or after release time, and planned ops >= t_0."""
+    """Invariant 3: First operation of an order must start at or after release time, planned ops >= t_0, and schedule clock matches factory."""
     violations: list[InvariantViolation] = []
+    if schedule_clock is not None and schedule_clock != factory.current_time_minute:
+        violations.append(
+            InvariantViolation(
+                rule=InvariantRule.INV_3_RELEASE_TIME,
+                entity_type="Schedule",
+                entity_id="CLOCK",
+                message=(
+                    f"Schedule plant clock {schedule_clock} does not match "
+                    f"authoritative factory plant clock {factory.current_time_minute}."
+                ),
+                expected=factory.current_time_minute,
+                actual=schedule_clock,
+            )
+        )
+
     ops_by_order: dict[str, list[ScheduledOperation]] = defaultdict(list)
     for s_op in scheduled_ops:
         ops_by_order[s_op.order_id].append(s_op)

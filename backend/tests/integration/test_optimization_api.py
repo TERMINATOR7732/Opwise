@@ -447,3 +447,144 @@ async def test_optimize_execution_aware_with_plant_clock_and_lifecycle(app_with_
         assert verif_data["violations"] == []
 
 
+@pytest.mark.asyncio
+async def test_optimize_with_explicit_clock_override(app_with_db: FastAPI) -> None:
+    """Explicit request.current_time_minute overrides workspace factory plant clock."""
+    transport = httpx.ASGITransport(app=app_with_db)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        ws_res = await client.post("/api/v1/workspaces", json={"name": "Clock Override WS"})
+        ws_id = ws_res.json()["data"]["id"]
+
+        # Factory has current_time_minute = 20
+        factory_payload = {
+            "current_time_minute": 20,
+            "machines": [{"external_id": "M1", "name": "Workstation 1"}],
+            "downtimes": [],
+            "orders": [
+                {
+                    "external_id": "J1",
+                    "name": "Job 1",
+                    "release_minute": 0,
+                    "due_minute": 100,
+                    "tardiness_weight": 1,
+                    "operations": [
+                        {"sequence_index": 1, "machine_id": "M1", "processing_minutes": 25, "status": "PLANNED"}
+                    ],
+                }
+            ],
+        }
+        await client.put(f"/api/v1/workspaces/{ws_id}/factory", json=factory_payload)
+
+        # Optimize with explicit clock override = 50
+        opt_res = await client.post(
+            f"/api/v1/workspaces/{ws_id}/optimize",
+            json={
+                "name": "Overridden Clock Solve",
+                "objective_type": "PURE_MAKESPAN",
+                "current_time_minute": 50,
+            },
+        )
+        assert opt_res.status_code == 200
+        data = opt_res.json()["data"]
+        assert data["solver_status"] == "OPTIMAL"
+        assert data["current_time_minute"] == 50
+        sched_op = data["scheduled_operations"][0]
+        assert sched_op["start_minute"] == 50
+        assert sched_op["end_minute"] == 75
+
+
+@pytest.mark.asyncio
+async def test_persisted_schedule_immutable_after_factory_clock_change(app_with_db: FastAPI) -> None:
+    """A persisted schedule re-verified on-demand uses its immutable snapshot regardless of factory clock advance."""
+    transport = httpx.ASGITransport(app=app_with_db)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        ws_res = await client.post("/api/v1/workspaces", json={"name": "Immutable Snapshot WS"})
+        ws_id = ws_res.json()["data"]["id"]
+
+        factory_payload = {
+            "current_time_minute": 30,
+            "machines": [{"external_id": "M1", "name": "Workstation 1"}],
+            "downtimes": [],
+            "orders": [
+                {
+                    "external_id": "J1",
+                    "name": "Job 1",
+                    "release_minute": 0,
+                    "due_minute": 100,
+                    "tardiness_weight": 1,
+                    "operations": [
+                        {"sequence_index": 1, "machine_id": "M1", "processing_minutes": 20, "status": "PLANNED"}
+                    ],
+                }
+            ],
+        }
+        await client.put(f"/api/v1/workspaces/{ws_id}/factory", json=factory_payload)
+
+        opt_res = await client.post(
+            f"/api/v1/workspaces/{ws_id}/optimize",
+            json={"name": "Initial Solve", "objective_type": "PURE_MAKESPAN"},
+        )
+        sched_id = opt_res.json()["data"]["schedule_id"]
+        assert opt_res.json()["data"]["current_time_minute"] == 30
+
+        # Now advance factory plant clock to 100
+        factory_payload["current_time_minute"] = 100
+        await client.put(f"/api/v1/workspaces/{ws_id}/factory", json=factory_payload)
+
+        # On-demand verify old schedule: snapshot reconstructs factory at clock 30, schedule clock is 30 -> PASSES
+        verif_res = await client.post(f"/api/v1/workspaces/{ws_id}/schedules/{sched_id}/verify")
+        assert verif_res.status_code == 200
+        assert verif_res.json()["data"]["is_valid"] is True
+
+
+@pytest.mark.asyncio
+async def test_optimize_infeasible_constraints_serializes_cleanly(app_with_db: FastAPI) -> None:
+    """An infeasible model serializes solver_status=INFEASIBLE and verification_status=SKIPPED cleanly."""
+    transport = httpx.ASGITransport(app=app_with_db)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        ws_res = await client.post("/api/v1/workspaces", json={"name": "Infeasible WS"})
+        ws_id = ws_res.json()["data"]["id"]
+
+        # In-progress op on M1 has lock [30, 70). Future downtime on M1 is [40, 60).
+        factory_payload = {
+            "current_time_minute": 30,
+            "machines": [{"external_id": "M1", "name": "Workstation 1"}],
+            "downtimes": [
+                {"external_id": "DT1", "machine_id": "M1", "start_minute": 40, "end_minute": 60, "reason": "Conflict"}
+            ],
+            "orders": [
+                {
+                    "external_id": "J1",
+                    "name": "Job 1",
+                    "release_minute": 0,
+                    "due_minute": 100,
+                    "tardiness_weight": 1,
+                    "operations": [
+                        {
+                            "sequence_index": 1,
+                            "machine_id": "M1",
+                            "processing_minutes": 50,
+                            "status": "IN_PROGRESS",
+                            "actual_start_minute": 10,
+                            "remaining_duration_minutes": 40,
+                        }
+                    ],
+                }
+            ],
+        }
+        await client.put(f"/api/v1/workspaces/{ws_id}/factory", json=factory_payload)
+
+        opt_res = await client.post(
+            f"/api/v1/workspaces/{ws_id}/optimize",
+            json={"name": "Infeasible Run", "objective_type": "PURE_MAKESPAN"},
+        )
+        assert opt_res.status_code == 200
+        data = opt_res.json()["data"]
+        assert data["solver_status"] == "INFEASIBLE"
+        assert data["verification_status"] == "SKIPPED"
+        assert data["scheduled_operations"] == []
+        assert data["current_time_minute"] == 30
+
+
+
+

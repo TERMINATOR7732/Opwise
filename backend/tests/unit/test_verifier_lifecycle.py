@@ -277,3 +277,139 @@ def test_operation_status_mismatch_fails_inv_2() -> None:
 
     assert report.is_valid is False
     assert InvariantRule.INV_2_DURATION_MACHINE in report.failed_rules
+
+
+def test_corrupted_completed_end_fails_inv_2() -> None:
+    """Mutant: If completed operation scheduled end differs from actual end, fails INV_2."""
+    factory, schedule = _make_sample_lifecycle_setup()
+    corrupt_ops = list(schedule.scheduled_operations)
+    corrupt_ops[0] = ScheduledOperation(
+        operation_id="op1_1",
+        order_id="ord1",
+        machine_id="M1",
+        sequence_number=1,
+        start_minute=0,
+        end_minute=20,  # Expected actual_end 25
+        processing_duration_minutes=20,
+        slack_minutes=5,
+        status=OperationStatus.COMPLETED,
+    )
+    schedule.scheduled_operations = corrupt_ops
+
+    verifier = ScheduleVerifier()
+    report = verifier.verify(factory, schedule)
+
+    assert report.is_valid is False
+    assert InvariantRule.INV_2_DURATION_MACHINE in report.failed_rules
+
+
+def test_corrupted_planned_duration_fails_inv_2() -> None:
+    """Mutant: If planned operation scheduled duration does not match nominal duration, fails INV_2."""
+    factory, schedule = _make_sample_lifecycle_setup()
+    corrupt_ops = list(schedule.scheduled_operations)
+    corrupt_ops[2] = ScheduledOperation(
+        operation_id="op2_1",
+        order_id="ord2",
+        machine_id="M1",
+        sequence_number=1,
+        start_minute=40,
+        end_minute=65,  # Span is 25m, expected nominal 30m
+        processing_duration_minutes=25,
+        slack_minutes=15,
+        status=OperationStatus.PLANNED,
+    )
+    schedule.scheduled_operations = corrupt_ops
+
+    verifier = ScheduleVerifier()
+    report = verifier.verify(factory, schedule)
+
+    assert report.is_valid is False
+    assert InvariantRule.INV_2_DURATION_MACHINE in report.failed_rules
+
+
+def test_planned_start_before_order_release_fails_inv_3() -> None:
+    """Mutant: If planned first operation starts before order release time, fails INV_3."""
+    factory, schedule = _make_sample_lifecycle_setup()
+    # Order 2 release time is 10. Mutate factory order 2 release time to 50 (op starts at 40).
+    factory.orders[1].release_time_minutes = 50
+
+    verifier = ScheduleVerifier()
+    report = verifier.verify(factory, schedule)
+
+    assert report.is_valid is False
+    assert InvariantRule.INV_3_RELEASE_TIME in report.failed_rules
+
+
+def test_corrupted_schedule_clock_fails_inv_3() -> None:
+    """Mutant: If schedule current_time_minute differs from factory current_time_minute, fails INV_3."""
+    factory, schedule = _make_sample_lifecycle_setup()
+    schedule.current_time_minute = 999  # Factory clock is 40
+
+    verifier = ScheduleVerifier()
+    report = verifier.verify(factory, schedule)
+
+    assert report.is_valid is False
+    assert InvariantRule.INV_3_RELEASE_TIME in report.failed_rules
+
+
+def test_lifecycle_precedence_violation_fails_inv_4() -> None:
+    """Mutant: If next operation starts before predecessor completes, fails INV_4."""
+    factory, schedule = _make_sample_lifecycle_setup()
+    corrupt_ops = list(schedule.scheduled_operations)
+    # op1_1 ends at 25. Corrupt op1_2 to start at 20.
+    corrupt_ops[1] = ScheduledOperation(
+        operation_id="op1_2",
+        order_id="ord1",
+        machine_id="M2",
+        sequence_number=2,
+        start_minute=20,  # Starts before op1_1 ends at 25!
+        end_minute=60,
+        processing_duration_minutes=40,
+        slack_minutes=10,
+        status=OperationStatus.IN_PROGRESS,
+    )
+    schedule.scheduled_operations = corrupt_ops
+
+    verifier = ScheduleVerifier()
+    report = verifier.verify(factory, schedule)
+
+    assert report.is_valid is False
+    assert InvariantRule.INV_4_PRECEDENCE in report.failed_rules
+
+
+def test_lifecycle_downtime_overlap_fails_inv_6() -> None:
+    """Mutant: If scheduled operation overlaps with declared downtime, fails INV_6."""
+    from opwise.domain.entities import MachineDowntime
+
+    factory, schedule = _make_sample_lifecycle_setup()
+    # Add downtime on M1 [45, 55). Op2_1 is scheduled on M1 [40, 70).
+    factory.downtimes.append(
+        MachineDowntime(id="dt-mut", machine_id="M1", start_minute=45, end_minute=55, reason="Emergency")
+    )
+
+    verifier = ScheduleVerifier()
+    report = verifier.verify(factory, schedule)
+
+    assert report.is_valid is False
+    assert InvariantRule.INV_6_DOWNTIME_COLLISION in report.failed_rules
+
+
+def test_corrupted_kpi_concordance_fails_inv_8() -> None:
+    """Mutant: If schedule KPIs diverge from analytical recalculation, fails INV_8."""
+    from opwise.domain.entities import ScheduleKPIs
+
+    factory, schedule = _make_sample_lifecycle_setup()
+    # Corrupt claimed makespan from 70 to 999
+    schedule.kpis = ScheduleKPIs(
+        makespan_minutes=999,
+        total_weighted_tardiness=0,
+        late_order_count=0,
+        on_time_rate=100.0,
+    )
+
+    verifier = ScheduleVerifier()
+    report = verifier.verify(factory, schedule)
+
+    assert report.is_valid is False
+    assert InvariantRule.INV_8_METRIC_CONCORDANCE in report.failed_rules
+

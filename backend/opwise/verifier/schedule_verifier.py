@@ -67,7 +67,11 @@ class ScheduleVerifier:
         violations: list[InvariantViolation] = []
         violations.extend(audit_cardinality(factory, schedule.scheduled_operations))
         violations.extend(audit_duration_and_machine(factory, schedule.scheduled_operations))
-        violations.extend(audit_release_times(factory, schedule.scheduled_operations))
+        violations.extend(
+            audit_release_times(
+                factory, schedule.scheduled_operations, schedule.current_time_minute
+            )
+        )
         violations.extend(audit_precedence(factory, schedule.scheduled_operations))
         violations.extend(audit_machine_exclusivity(schedule.scheduled_operations))
         violations.extend(audit_downtime_respect(factory, schedule.scheduled_operations))
