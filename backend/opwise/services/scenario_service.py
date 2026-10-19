@@ -195,6 +195,7 @@ class ScenarioService:
             kpis=ScheduleKPIs(0, 0, 0, 0.0),
             scheduled_operations=[],
             verified=False,
+            current_time_minute=disrupted_factory.current_time_minute,
         )
         return await self.schedule_repo.save_schedule(
             workspace_id=workspace_id,

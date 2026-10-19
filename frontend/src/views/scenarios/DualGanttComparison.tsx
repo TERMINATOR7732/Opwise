@@ -88,6 +88,9 @@ export function DualGanttComparison({
                 Baseline Schedule: {baselineSchedule.name}
               </span>
               <Badge variant="neutral">IMMUTABLE BASELINE</Badge>
+              {baselineSchedule.current_time_minute !== undefined && baselineSchedule.current_time_minute > 0 && (
+                <Badge variant="warning">CLOCK t₀ = {baselineSchedule.current_time_minute}m</Badge>
+              )}
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
                 Cmax: {baselineSchedule.metrics.makespan_minutes}m
               </span>
@@ -101,6 +104,7 @@ export function DualGanttComparison({
               operations={baselineSchedule.scheduled_operations}
               downtimes={baselineSchedule.downtimes}
               machines={baselineSchedule.machines}
+              currentTimeMinute={baselineSchedule.current_time_minute}
             />
           </div>
         )}
@@ -118,6 +122,9 @@ export function DualGanttComparison({
                 Recovery Schedule: {recoverySchedule.name}
               </span>
               <Badge variant="optimal">REOPTIMIZED PLAN</Badge>
+              {recoverySchedule.current_time_minute !== undefined && recoverySchedule.current_time_minute > 0 && (
+                <Badge variant="warning">CLOCK t₀ = {recoverySchedule.current_time_minute}m</Badge>
+              )}
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
                 Cmax: {recoverySchedule.metrics.makespan_minutes}m
               </span>
@@ -131,6 +138,7 @@ export function DualGanttComparison({
               operations={recoverySchedule.scheduled_operations}
               downtimes={recoverySchedule.downtimes}
               machines={recoverySchedule.machines}
+              currentTimeMinute={recoverySchedule.current_time_minute}
             />
           </div>
         )}

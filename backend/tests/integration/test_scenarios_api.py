@@ -319,3 +319,349 @@ async def test_scenarios_compare_cross_workspace_isolation(app_with_db: FastAPI)
         )
         assert compare_res.status_code == 404
         assert "not found" in compare_res.json()["error"]["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_scenario_execution_aware_disruption_recovery(app_with_db: FastAPI) -> None:
+    """Milestone 15C: Recovery scheduling preserves factory clock and lifecycle states."""
+    transport = httpx.ASGITransport(app=app_with_db)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        # Create workspace
+        ws_res = await client.post("/api/v1/workspaces", json={"name": "Execution Aware WS"})
+        ws_id = ws_res.json()["data"]["id"]
+
+        clock = 40
+        factory_payload = {
+            "current_time_minute": clock,
+            "machines": [
+                {"external_id": "M1", "name": "Milling Station"},
+            ],
+            "downtimes": [],
+            "orders": [
+                {
+                    "external_id": "ORD-EXEC",
+                    "name": "Order Exec",
+                    "release_minute": 0,
+                    "due_minute": 200,
+                    "tardiness_weight": 2,
+                    "operations": [
+                        {
+                            "sequence_index": 1,
+                            "machine_id": "M1",
+                            "processing_minutes": 25,
+                            "status": "COMPLETED",
+                            "actual_start_minute": 0,
+                            "actual_end_minute": 25,
+                        },
+                        {
+                            "sequence_index": 2,
+                            "machine_id": "M1",
+                            "processing_minutes": 35,
+                            "status": "IN_PROGRESS",
+                            "actual_start_minute": 25,
+                            "remaining_duration_minutes": 20,  # Locks M1 until 40 + 20 = 60
+                        },
+                        {
+                            "sequence_index": 3,
+                            "machine_id": "M1",
+                            "processing_minutes": 30,
+                            "status": "PLANNED",
+                        },
+                    ],
+                }
+            ],
+        }
+        put_res = await client.put(f"/api/v1/workspaces/{ws_id}/factory", json=factory_payload)
+        assert put_res.status_code == 200
+        factory_data = put_res.json()["data"]
+        m1_id = factory_data["machines"][0]["id"]
+
+        # Solve baseline schedule
+        base_res = await client.post(
+            f"/api/v1/workspaces/{ws_id}/optimize",
+            json={"name": "Baseline Schedule", "objective_type": "PURE_MAKESPAN"},
+        )
+        assert base_res.status_code == 200
+        base_data = base_res.json()["data"]
+        base_id = base_data["schedule_id"]
+        assert base_data["current_time_minute"] == clock
+        assert base_data["solver_status"] == "OPTIMAL"
+
+        # Verify baseline ops: op 1 at 0..25, op 2 at 25..60, op 3 at 60..90
+        base_ops = {op["sequence_index"]: op for op in base_data["scheduled_operations"]}
+        assert base_ops[1]["start_minute"] == 0
+        assert base_ops[1]["end_minute"] == 25
+        assert base_ops[1]["status"] == "COMPLETED"
+        assert base_ops[2]["start_minute"] == 25
+        assert base_ops[2]["end_minute"] == 60
+        assert base_ops[2]["status"] == "IN_PROGRESS"
+        assert base_ops[3]["start_minute"] == 60
+        assert base_ops[3]["end_minute"] == 90
+        assert base_ops[3]["status"] == "PLANNED"
+
+        # Inject downtime on M1 after in-progress lock: [60, 80)
+        scen_res = await client.post(
+            f"/api/v1/workspaces/{ws_id}/scenarios",
+            json={
+                "name": "M1 Post-Execution Breakdown",
+                "baseline_schedule_id": base_id,
+                "disruption_type": "MACHINE_DOWNTIME",
+                "disruption_delta": {
+                    "added_downtimes": [
+                        {"machine_id": m1_id, "start_minute": 60, "end_minute": 80, "reason": "Coolant line leak"}
+                    ]
+                },
+            },
+        )
+        assert scen_res.status_code == 201
+        scen_id = scen_res.json()["data"]["id"]
+
+        # Reoptimize recovery schedule
+        reopt_res = await client.post(
+            f"/api/v1/workspaces/{ws_id}/scenarios/{scen_id}/reoptimize",
+            json={"primary_time_budget_seconds": 10.0},
+        )
+        assert reopt_res.status_code == 200
+        reopt_data = reopt_res.json()["data"]
+        rec_id = reopt_data["compared_schedule_id"]
+        assert rec_id is not None
+
+        # Fetch recovery schedule detail
+        rec_sched_res = await client.get(f"/api/v1/workspaces/{ws_id}/schedules/{rec_id}")
+        assert rec_sched_res.status_code == 200
+        rec_data = rec_sched_res.json()["data"]
+
+        # 1. Recovery preserves plant clock
+        assert rec_data["current_time_minute"] == clock
+        assert rec_data["solver_status"] in ("OPTIMAL", "FEASIBLE")
+        assert rec_data["verification_status"] == "VERIFIED"
+
+        # 2. Completed op 1 and in-progress op 2 remain locked and unchanged
+        rec_ops = {op["sequence_index"]: op for op in rec_data["scheduled_operations"]}
+        assert rec_ops[1]["start_minute"] == 0
+        assert rec_ops[1]["end_minute"] == 25
+        assert rec_ops[1]["status"] == "COMPLETED"
+
+        assert rec_ops[2]["start_minute"] == 25
+        assert rec_ops[2]["end_minute"] == 60
+        assert rec_ops[2]["status"] == "IN_PROGRESS"
+
+        # 3. Planned op 3 is shifted past the downtime [60, 80) to [80, 110)
+        assert rec_ops[3]["start_minute"] == 80
+        assert rec_ops[3]["end_minute"] == 110
+        assert rec_ops[3]["status"] == "PLANNED"
+
+        # 4. Scenario comparison accurately reports divergences
+        comp = reopt_data
+        assert comp["delta_makespan"] == 20  # 110 - 90 = 20
+
+        div_by_seq = {d["sequence_index"]: d for d in comp["diverged_operations"]}
+        assert div_by_seq[1]["status"] == "UNMODIFIED"
+        assert div_by_seq[1]["delta_start_minutes"] == 0
+
+        assert div_by_seq[2]["status"] == "UNMODIFIED"
+        assert div_by_seq[2]["delta_start_minutes"] == 0
+
+        assert div_by_seq[3]["status"] == "DELAYED"
+        assert div_by_seq[3]["delta_start_minutes"] == 20
+
+
+@pytest.mark.asyncio
+async def test_scenario_disruption_validation_failures(app_with_db: FastAPI) -> None:
+    """Milestone 15C: Injected downtimes and rush orders violating clock & lifecycle are rejected with HTTP 422."""
+    transport = httpx.ASGITransport(app=app_with_db)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        ws_res = await client.post("/api/v1/workspaces", json={"name": "Validation WS"})
+        ws_id = ws_res.json()["data"]["id"]
+
+        clock = 40
+        factory_payload = {
+            "current_time_minute": clock,
+            "machines": [{"external_id": "M1", "name": "Workstation 1"}],
+            "downtimes": [],
+            "orders": [
+                {
+                    "external_id": "ORD-1",
+                    "name": "Order 1",
+                    "release_minute": 0,
+                    "due_minute": 200,
+                    "tardiness_weight": 1,
+                    "operations": [
+                        {
+                            "sequence_index": 1,
+                            "machine_id": "M1",
+                            "processing_minutes": 25,
+                            "status": "COMPLETED",
+                            "actual_start_minute": 0,
+                            "actual_end_minute": 25,
+                        },
+                        {
+                            "sequence_index": 2,
+                            "machine_id": "M1",
+                            "processing_minutes": 30,
+                            "status": "IN_PROGRESS",
+                            "actual_start_minute": 25,
+                            "remaining_duration_minutes": 20,  # [25, 60)
+                        },
+                    ],
+                }
+            ],
+        }
+        put_res = await client.put(f"/api/v1/workspaces/{ws_id}/factory", json=factory_payload)
+        m1_id = put_res.json()["data"]["machines"][0]["id"]
+
+        opt_res = await client.post(
+            f"/api/v1/workspaces/{ws_id}/optimize",
+            json={"name": "Baseline", "objective_type": "PURE_MAKESPAN"},
+        )
+        base_id = opt_res.json()["data"]["schedule_id"]
+
+        # Case A: Downtime ending at or before plant clock (end <= 40)
+        res_a = await client.post(
+            f"/api/v1/workspaces/{ws_id}/scenarios",
+            json={
+                "name": "Past Outage",
+                "baseline_schedule_id": base_id,
+                "disruption_type": "MACHINE_DOWNTIME",
+                "disruption_delta": {
+                    "added_downtimes": [{"machine_id": m1_id, "start_minute": 10, "end_minute": 35}]
+                },
+            },
+        )
+        assert res_a.status_code == 422
+        assert res_a.json()["error"]["code"] == "HISTORICAL_DOWNTIME_CONFLICT"
+
+        # Case B: Downtime colliding with completed operation [0, 25)
+        res_b = await client.post(
+            f"/api/v1/workspaces/{ws_id}/scenarios",
+            json={
+                "name": "Completed Op Collision",
+                "baseline_schedule_id": base_id,
+                "disruption_type": "MACHINE_DOWNTIME",
+                "disruption_delta": {
+                    "added_downtimes": [{"machine_id": m1_id, "start_minute": 20, "end_minute": 50}]
+                },
+            },
+        )
+        assert res_b.status_code == 422
+        assert res_b.json()["error"]["code"] == "HISTORICAL_DOWNTIME_CONFLICT"
+
+        # Case C: Downtime colliding with in-progress locked execution [25, 60)
+        res_c = await client.post(
+            f"/api/v1/workspaces/{ws_id}/scenarios",
+            json={
+                "name": "In-Progress Collision",
+                "baseline_schedule_id": base_id,
+                "disruption_type": "MACHINE_DOWNTIME",
+                "disruption_delta": {
+                    "added_downtimes": [{"machine_id": m1_id, "start_minute": 50, "end_minute": 70}]
+                },
+            },
+        )
+        assert res_c.status_code == 422
+        assert res_c.json()["error"]["code"] == "HISTORICAL_DOWNTIME_CONFLICT"
+
+        # Case D: Rush order with release time preceding plant clock (< 40)
+        res_d = await client.post(
+            f"/api/v1/workspaces/{ws_id}/scenarios",
+            json={
+                "name": "Pre-Clock Rush Order",
+                "baseline_schedule_id": base_id,
+                "disruption_type": "URGENT_ORDER",
+                "disruption_delta": {
+                    "added_orders": [
+                        {
+                            "order_code": "RUSH-EARLY",
+                            "release_time_minutes": 30,
+                            "due_date_minutes": 100,
+                            "tardiness_weight": 5,
+                            "operations": [
+                                {"sequence_index": 1, "machine_id": m1_id, "processing_minutes": 20}
+                            ],
+                        }
+                    ]
+                },
+            },
+        )
+        assert res_d.status_code == 422
+        assert res_d.json()["error"]["code"] == "INVALID_SEQUENCE"
+
+
+@pytest.mark.asyncio
+async def test_scenario_infeasible_recovery_preserves_clock(
+    app_with_db: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Milestone 15C: Unsuccessful/infeasible reoptimization preserves plant clock in persisted recovery schedule."""
+    from opwise.domain.entities import ObjectiveMode, ScheduleStatus
+    from opwise.solver.engine import CPSATScheduler, SolverResult
+
+    transport = httpx.ASGITransport(app=app_with_db)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        ws_res = await client.post("/api/v1/workspaces", json={"name": "Infeasible WS"})
+        ws_id = ws_res.json()["data"]["id"]
+
+        clock = 50
+        factory_payload = {
+            "current_time_minute": clock,
+            "machines": [{"external_id": "M1", "name": "Workstation 1"}],
+            "downtimes": [],
+            "orders": [
+                {
+                    "external_id": "ORD-1",
+                    "name": "Order 1",
+                    "release_minute": clock,
+                    "due_minute": 200,
+                    "tardiness_weight": 1,
+                    "operations": [
+                        {"sequence_index": 1, "machine_id": "M1", "processing_minutes": 30}
+                    ],
+                }
+            ],
+        }
+        put_res = await client.put(f"/api/v1/workspaces/{ws_id}/factory", json=factory_payload)
+        m1_id = put_res.json()["data"]["machines"][0]["id"]
+
+        opt_res = await client.post(
+            f"/api/v1/workspaces/{ws_id}/optimize",
+            json={"name": "Baseline", "objective_type": "PURE_MAKESPAN"},
+        )
+        base_id = opt_res.json()["data"]["schedule_id"]
+
+        # Branch scenario
+        scen_res = await client.post(
+            f"/api/v1/workspaces/{ws_id}/scenarios",
+            json={
+                "name": "Outage Scenario",
+                "baseline_schedule_id": base_id,
+                "disruption_type": "MACHINE_DOWNTIME",
+                "disruption_delta": {
+                    "added_downtimes": [{"machine_id": m1_id, "start_minute": 60, "end_minute": 90}]
+                },
+            },
+        )
+        assert scen_res.status_code == 201
+        scen_id = scen_res.json()["data"]["id"]
+
+        def mock_solve(*args, **kwargs) -> SolverResult:
+            return SolverResult(
+                status=ScheduleStatus.INFEASIBLE,
+                schedule=None,
+                objective_mode=ObjectiveMode.PURE_MAKESPAN,
+                wall_clock_seconds=0.15,
+                deterministic_time=0.01,
+            )
+
+        monkeypatch.setattr(CPSATScheduler, "solve", mock_solve)
+
+        reopt_res = await client.post(f"/api/v1/workspaces/{ws_id}/scenarios/{scen_id}/reoptimize")
+        assert reopt_res.status_code == 200
+        rec_id = reopt_res.json()["data"]["compared_schedule_id"]
+        assert rec_id is not None
+
+        # Fetch recovery schedule
+        rec_sched_res = await client.get(f"/api/v1/workspaces/{ws_id}/schedules/{rec_id}")
+        assert rec_sched_res.status_code == 200
+        rec_data = rec_sched_res.json()["data"]
+        assert rec_data["solver_status"] == "INFEASIBLE"
+        assert rec_data["verification_status"] == "SKIPPED"
+        assert rec_data["current_time_minute"] == clock

@@ -30,18 +30,19 @@ export function CreateScenarioModal({
   schedules,
   machines,
 }: CreateScenarioModalProps): React.ReactElement | null {
+  const initialClock = schedules[0]?.current_time_minute ?? 0;
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [baselineScheduleId, setBaselineScheduleId] = useState(schedules[0]?.id || '');
   const [disruptionType, setDisruptionType] = useState<'MACHINE_DOWNTIME' | 'URGENT_ORDER' | 'COMBINED'>('MACHINE_DOWNTIME');
   const [downtimes, setDowntimes] = useState<DowntimeDisruptionItem[]>([
-    { machine_id: machines[0]?.id || '', start_minute: 0, end_minute: 30, reason: 'Unplanned breakdown' },
+    { machine_id: machines[0]?.id || '', start_minute: initialClock, end_minute: initialClock + 30, reason: 'Unplanned breakdown' },
   ]);
   const [rushOrders, setRushOrders] = useState<OrderDisruptionItem[]>([
     {
       order_code: 'RUSH-101',
-      release_time_minutes: 0,
-      due_date_minutes: 60,
+      release_time_minutes: initialClock,
+      due_date_minutes: initialClock + 60,
       tardiness_weight: 5,
       operations: [{ sequence_index: 1, machine_id: machines[0]?.id || '', processing_minutes: 20 }],
     },
@@ -49,12 +50,15 @@ export function CreateScenarioModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedSchedule = schedules.find((s) => s.id === baselineScheduleId) || schedules[0];
+  const baselineClock = selectedSchedule?.current_time_minute ?? 0;
+
   if (!isOpen) return null;
 
   const handleAddDowntime = () => {
     setDowntimes((prev) => [
       ...prev,
-      { machine_id: machines[0]?.id || '', start_minute: 0, end_minute: 30, reason: 'Maintenance outage' },
+      { machine_id: machines[0]?.id || '', start_minute: baselineClock, end_minute: baselineClock + 30, reason: 'Maintenance outage' },
     ]);
   };
 
@@ -71,8 +75,8 @@ export function CreateScenarioModal({
       ...prev,
       {
         order_code: `RUSH-${prev.length + 101}`,
-        release_time_minutes: 0,
-        due_date_minutes: 90,
+        release_time_minutes: baselineClock,
+        due_date_minutes: baselineClock + 90,
         tardiness_weight: 5,
         operations: [{ sequence_index: 1, machine_id: machines[0]?.id || '', processing_minutes: 25 }],
       },
@@ -219,7 +223,7 @@ export function CreateScenarioModal({
               >
                 {schedules.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} ({s.solver_status}, Cmax: {s.makespan_minutes}m)
+                    {s.name} ({s.solver_status}, Cmax: {s.makespan_minutes}m{s.current_time_minute ? `, Clock: ${s.current_time_minute}m` : ''})
                   </option>
                 ))}
               </select>

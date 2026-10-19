@@ -207,4 +207,54 @@ describe('Scenario Lab & Disruption Components', () => {
     expect(markup).toContain('Disruption Type');
     expect(markup).toContain('Injected Machine Downtimes');
   });
+
+  it('renders DualGanttComparison with plant clock badge when current_time_minute > 0', () => {
+    const baselineWithClock: ScheduleDetailResponse = {
+      ...mockBaselineSchedule,
+      current_time_minute: 45,
+    };
+    const recoveryWithClock: ScheduleDetailResponse = {
+      ...mockRecoverySchedule,
+      current_time_minute: 45,
+    };
+    const markup = renderToStaticMarkup(
+      <DualGanttComparison
+        baselineSchedule={baselineWithClock}
+        recoverySchedule={recoveryWithClock}
+      />
+    );
+    expect(markup).toContain('CLOCK t₀ = 45m');
+  });
+
+  it('defaults CreateScenarioModal disruption inputs to baseline schedule plant clock', () => {
+    const markup = renderToStaticMarkup(
+      <CreateScenarioModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+        schedules={[
+          {
+            id: 's-clock',
+            workspace_id: 'ws1',
+            name: 'Shift 1 Sched',
+            objective_type: 'PURE_MAKESPAN',
+            solver_status: 'OPTIMAL',
+            verification_status: 'VERIFIED',
+            makespan_minutes: 120,
+            weighted_tardiness: 0,
+            late_order_count: 0,
+            on_time_rate: 100,
+            current_time_minute: 50,
+            created_at: '',
+          },
+        ]}
+        machines={[{ id: 'M1', external_id: 'M1', name: 'M1', created_at: '' }]}
+      />
+    );
+    expect(markup).toContain('Clock: 50m');
+    // Start minute should default to 50
+    expect(markup).toContain('value="50"');
+    // End minute should default to 50 + 30 = 80
+    expect(markup).toContain('value="80"');
+  });
 });

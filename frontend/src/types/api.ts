@@ -61,6 +61,7 @@ export interface ScheduleSummaryResponse {
   weighted_tardiness: number;
   late_order_count: number;
   on_time_rate: number;
+  current_time_minute?: number;
   created_at: string;
 }
 

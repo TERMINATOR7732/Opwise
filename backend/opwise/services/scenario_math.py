@@ -10,12 +10,14 @@ from opwise.domain.entities import (
     Factory,
     MachineDowntime,
     Operation,
+    OperationStatus,
     ProductionOrder,
 )
 from opwise.domain.exceptions import (
     DomainError,
     InvalidIntervalError,
     InvalidSequenceError,
+    LifecycleStateError,
     ReferentialIntegrityError,
 )
 from opwise.persistence.models import ScheduledOperationModel
@@ -27,31 +29,96 @@ UNLIKE_WARNING_TEXT = (
 
 
 def validate_disruption(base_factory: Factory, disruption_type: str, delta: DisruptionDelta) -> None:
-    """Validate disruption consistency against baseline factory machines and invariants."""
+    """Validate disruption consistency against baseline factory machines, clock, and invariants."""
     valid_types = {"MACHINE_DOWNTIME", "URGENT_ORDER", "COMBINED"}
     if disruption_type not in valid_types:
         raise DomainError(f"Invalid disruption_type '{disruption_type}'. Must be one of {valid_types}.")
 
+    clock = base_factory.current_time_minute
     valid_machine_ids = {m.id for m in base_factory.machines}
+
+    # 1. Validate injected downtimes
     for dt in delta.added_downtimes:
         if dt.machine_id not in valid_machine_ids:
             raise ReferentialIntegrityError("Machine", dt.machine_id, "Scenario downtime injection")
-        if dt.end_minute <= dt.start_minute:
+        if dt.start_minute < 0 or dt.end_minute <= dt.start_minute:
             raise InvalidIntervalError("scenario_dt", dt.start_minute, dt.end_minute)
 
+        # Downtime cannot end in the past relative to the plant clock
+        if dt.end_minute <= clock:
+            raise LifecycleStateError(
+                f"Injected downtime [{dt.start_minute}, {dt.end_minute}) on machine '{dt.machine_id}' "
+                f"cannot end at or before plant clock {clock}.",
+                error_code="HISTORICAL_DOWNTIME_CONFLICT",
+            )
+
+        # Collision checks against baseline operations on that machine
+        for order in base_factory.orders:
+            for op in order.operations:
+                if op.machine_id == dt.machine_id:
+                    if (
+                        op.status == OperationStatus.COMPLETED
+                        and op.actual_start_minute is not None
+                        and op.actual_end_minute is not None
+                        and max(dt.start_minute, op.actual_start_minute) < min(dt.end_minute, op.actual_end_minute)
+                    ):
+                        raise LifecycleStateError(
+                            f"Injected downtime [{dt.start_minute}, {dt.end_minute}) collides with completed "
+                            f"operation '{op.id}' [{op.actual_start_minute}, {op.actual_end_minute}) on machine '{dt.machine_id}'.",
+                            error_code="HISTORICAL_DOWNTIME_CONFLICT",
+                        )
+                    if (
+                        op.status == OperationStatus.IN_PROGRESS
+                        and op.actual_start_minute is not None
+                        and op.remaining_duration_minutes is not None
+                    ):
+                        in_prog_end = clock + op.remaining_duration_minutes
+                        if max(dt.start_minute, op.actual_start_minute) < min(dt.end_minute, in_prog_end):
+                            raise LifecycleStateError(
+                                f"Injected downtime [{dt.start_minute}, {dt.end_minute}) collides with in-progress "
+                                f"operation '{op.id}' [{op.actual_start_minute}, {in_prog_end}) on machine '{dt.machine_id}'.",
+                                error_code="HISTORICAL_DOWNTIME_CONFLICT",
+                            )
+
+    # 2. Validate injected rush orders
     for ord_item in delta.added_orders:
         if not ord_item.operations:
             raise DomainError(f"Rush order '{ord_item.order_code}' must contain at least one operation.")
-        sorted_ops = sorted(ord_item.operations, key=lambda op: op.sequence_index)
-        for expected_idx, op in enumerate(sorted_ops, start=1):
-            if op.sequence_index != expected_idx:
-                raise InvalidSequenceError(ord_item.order_code, expected_idx, op.sequence_index)
-            if op.machine_id not in valid_machine_ids:
-                raise ReferentialIntegrityError("Machine", op.machine_id, f"Rush order {ord_item.order_code}")
+
+        # Rush order release time cannot precede plant clock
+        if ord_item.release_time_minutes < clock:
+            raise LifecycleStateError(
+                f"Rush order '{ord_item.order_code}' release time {ord_item.release_time_minutes} "
+                f"cannot precede plant clock {clock}.",
+                error_code="INVALID_SEQUENCE",
+            )
+
+        if ord_item.due_date_minutes < ord_item.release_time_minutes:
+            raise DomainError(
+                f"Rush order '{ord_item.order_code}' due date {ord_item.due_date_minutes} "
+                f"cannot precede release time {ord_item.release_time_minutes}."
+            )
+
+        if ord_item.tardiness_weight < 0:
+            raise DomainError(
+                f"Rush order '{ord_item.order_code}' tardiness weight {ord_item.tardiness_weight} cannot be negative."
+            )
+
+        sorted_ops = sorted(ord_item.operations, key=lambda rop: rop.sequence_index)
+        for expected_idx, rush_op in enumerate(sorted_ops, start=1):
+            if rush_op.sequence_index != expected_idx:
+                raise InvalidSequenceError(ord_item.order_code, expected_idx, rush_op.sequence_index)
+            if rush_op.machine_id not in valid_machine_ids:
+                raise ReferentialIntegrityError("Machine", rush_op.machine_id, f"Rush order {ord_item.order_code}")
+            if rush_op.processing_minutes <= 0:
+                raise DomainError(
+                    f"Rush order '{ord_item.order_code}' operation step {rush_op.sequence_index} "
+                    f"must have positive duration (got {rush_op.processing_minutes})."
+                )
 
 
 def synthesize_disrupted_factory(workspace_id: str, base_factory: Factory, delta: DisruptionDelta) -> Factory:
-    """Clone base factory and apply disruption delta without mutating original state."""
+    """Clone base factory and apply disruption delta without mutating original state, preserving plant clock and lifecycles."""
     downtimes = [
         MachineDowntime(
             id=dt.id,
@@ -85,6 +152,10 @@ def synthesize_disrupted_factory(workspace_id: str, base_factory: Factory, delta
                     sequence_number=op.sequence_number,
                     machine_id=op.machine_id,
                     processing_duration_minutes=op.processing_duration_minutes,
+                    status=op.status,
+                    actual_start_minute=op.actual_start_minute,
+                    actual_end_minute=op.actual_end_minute,
+                    remaining_duration_minutes=op.remaining_duration_minutes,
                 )
                 for op in o.operations
             ],
@@ -100,6 +171,10 @@ def synthesize_disrupted_factory(workspace_id: str, base_factory: Factory, delta
                 sequence_number=op.sequence_index,
                 machine_id=op.machine_id,
                 processing_duration_minutes=op.processing_minutes,
+                status=OperationStatus.PLANNED,
+                actual_start_minute=None,
+                actual_end_minute=None,
+                remaining_duration_minutes=None,
             )
             for op in ord_item.operations
         ]
@@ -114,7 +189,13 @@ def synthesize_disrupted_factory(workspace_id: str, base_factory: Factory, delta
             )
         )
 
-    return Factory(workspace_id=workspace_id, machines=base_factory.machines, downtimes=downtimes, orders=orders)
+    return Factory(
+        workspace_id=workspace_id,
+        machines=base_factory.machines,
+        downtimes=downtimes,
+        orders=orders,
+        current_time_minute=base_factory.current_time_minute,
+    )
 
 
 def compute_operation_divergences(
@@ -176,3 +257,4 @@ def compute_operation_divergences(
             )
 
     return sorted(divergences, key=lambda d: (d.order_id, d.sequence_index))
+
