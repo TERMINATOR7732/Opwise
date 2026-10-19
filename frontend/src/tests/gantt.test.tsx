@@ -308,3 +308,161 @@ describe('GanttChart Root Component', () => {
     expect(markup).toContain('FEASIBLE');
   });
 });
+
+describe('Execution-Aware Gantt & Plant Clock Lifecycle Visualization', () => {
+  const lifecycleOperations: ScheduledOperationResponse[] = [
+    {
+      operation_id: 'op-comp',
+      order_id: 'ORD-HIST',
+      sequence_index: 1,
+      machine_id: 'M1',
+      start_minute: 0,
+      end_minute: 25,
+      duration: 25,
+      slack_minutes: 0,
+      status: 'COMPLETED',
+    },
+    {
+      operation_id: 'op-prog',
+      order_id: 'ORD-ACT',
+      sequence_index: 1,
+      machine_id: 'M2',
+      start_minute: 10,
+      end_minute: 40,
+      duration: 30,
+      slack_minutes: 0,
+      status: 'IN_PROGRESS',
+    },
+    {
+      operation_id: 'op-plan',
+      order_id: 'ORD-FUT',
+      sequence_index: 1,
+      machine_id: 'M1',
+      start_minute: 30,
+      end_minute: 60,
+      duration: 30,
+      slack_minutes: 0,
+      status: 'PLANNED',
+    },
+  ];
+
+  it('renders plant clock marker on GanttTimeAxis when currentTimeMinute is provided', () => {
+    const markup = renderToStaticMarkup(
+      <GanttTimeAxis
+        ticks={[0, 30, 60]}
+        scale={2.0}
+        timelineWidth={400}
+        labelColumnWidth={170}
+        currentTimeMinute={25}
+      />
+    );
+    expect(markup).toContain('NOW (25m)');
+    expect(markup).toContain('stroke="#ef4444"');
+  });
+
+  it('renders plant clock vertical guideline on GanttSwimlane when currentTimeMinute is provided', () => {
+    const markup = renderToStaticMarkup(
+      <GanttSwimlane
+        machineId="M1"
+        machineName="CNC Mill"
+        operations={lifecycleOperations.filter((o) => o.machine_id === 'M1')}
+        downtimes={[]}
+        ticks={[0, 30, 60]}
+        scale={2.0}
+        timelineWidth={400}
+        labelColumnWidth={170}
+        currentTimeMinute={25}
+        selectedOperationId={null}
+        onSelectOperation={vi.fn()}
+        isEvenRow={true}
+      />
+    );
+    expect(markup).toContain('stroke="#ef4444"');
+    expect(markup).toContain('stroke-dasharray="4 3"');
+  });
+
+  it('renders completed operation with checkmark prefix and dashed stroke in GanttSwimlane', () => {
+    const markup = renderToStaticMarkup(
+      <GanttSwimlane
+        machineId="M1"
+        machineName="CNC Mill"
+        operations={lifecycleOperations.filter((o) => o.status === 'COMPLETED')}
+        downtimes={[]}
+        ticks={[0, 30, 60]}
+        scale={2.0}
+        timelineWidth={400}
+        labelColumnWidth={170}
+        selectedOperationId={null}
+        onSelectOperation={vi.fn()}
+        isEvenRow={true}
+      />
+    );
+    expect(markup).toContain('✓ ORD-HIST #1');
+    expect(markup).toContain('stroke-dasharray="4 2"');
+    expect(markup).toContain('Status: COMPLETED');
+  });
+
+  it('renders in-progress operation with elapsed shading and active lock boundary in GanttSwimlane', () => {
+    const markup = renderToStaticMarkup(
+      <GanttSwimlane
+        machineId="M2"
+        machineName="Lathe"
+        operations={lifecycleOperations.filter((o) => o.status === 'IN_PROGRESS')}
+        downtimes={[]}
+        ticks={[0, 30, 60]}
+        scale={2.0}
+        timelineWidth={400}
+        labelColumnWidth={170}
+        currentTimeMinute={25}
+        selectedOperationId={null}
+        onSelectOperation={vi.fn()}
+        isEvenRow={true}
+      />
+    );
+    expect(markup).toContain('● ORD-ACT #1');
+    expect(markup).toContain('Status: IN_PROGRESS');
+    expect(markup).toContain('Elapsed: [10, 25)m');
+    expect(markup).toContain('Remaining Duration: 15m');
+    expect(markup).toContain('fill="#000000"');
+    expect(markup).toContain('opacity="0.35"');
+    expect(markup).toContain('stroke="#38bdf8"');
+  });
+
+  it('displays status badge in GanttOperationDetail for completed and in-progress ops', () => {
+    const compMarkup = renderToStaticMarkup(
+      <GanttOperationDetail
+        operation={lifecycleOperations[0]}
+        machineName="CNC Mill"
+        onClose={vi.fn()}
+      />
+    );
+    expect(compMarkup).toContain('COMPLETED');
+
+    const progMarkup = renderToStaticMarkup(
+      <GanttOperationDetail
+        operation={lifecycleOperations[1]}
+        machineName="Lathe"
+        onClose={vi.fn()}
+      />
+    );
+    expect(progMarkup).toContain('IN_PROGRESS');
+  });
+
+  it('renders PLANT CLOCK badge in GanttChart header when currentTimeMinute > 0', () => {
+    const markup = renderToStaticMarkup(
+      <GanttChart
+        scheduleId="sched-clock"
+        scheduleName="Execution Aware Plan"
+        solverStatus="OPTIMAL"
+        verificationStatus="VERIFIED"
+        makespanMinutes={80}
+        operations={lifecycleOperations}
+        machines={mockMachines}
+        currentTimeMinute={25}
+      />
+    );
+    expect(markup).toContain('PLANT CLOCK: 25m');
+    expect(markup).toContain('NOW (25m)');
+  });
+});
+

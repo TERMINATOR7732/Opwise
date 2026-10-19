@@ -54,6 +54,20 @@ export function GanttOperationDetail({
           <Badge variant="neutral" className="font-mono">
             {operation.order_id} · Step #{operation.sequence_index}
           </Badge>
+          {operation.status && (
+            <Badge
+              variant={
+                operation.status === 'COMPLETED'
+                  ? 'optimal'
+                  : operation.status === 'IN_PROGRESS'
+                  ? 'warning'
+                  : 'neutral'
+              }
+              className="font-mono"
+            >
+              {operation.status}
+            </Badge>
+          )}
         </div>
         <Button variant="secondary" size="sm" onClick={onClose} aria-label="Close operation inspection panel">
           Deselect (Esc)

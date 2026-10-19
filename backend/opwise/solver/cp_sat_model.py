@@ -47,12 +47,18 @@ def build_cp_sat_model(
 ) -> CPSATModel:
     """Construct an integer CP-SAT model from validated factory parameters and chosen objective."""
     norm = normalize_machine_downtimes(factory.downtimes)
-    horizon = calculate_effective_horizon(factory.orders, norm.merged_downtimes)
+    horizon = calculate_effective_horizon(
+        factory.orders, norm.merged_downtimes, factory.current_time_minute
+    )
 
     model = cp_model.CpModel()
-    var_bundles = build_operation_intervals(model, factory.orders, horizon)
+    var_bundles = build_operation_intervals(
+        model, factory.orders, horizon, factory.current_time_minute
+    )
 
-    add_release_time_constraints(model, factory.orders, var_bundles)
+    add_release_time_constraints(
+        model, factory.orders, var_bundles, factory.current_time_minute
+    )
     add_precedence_constraints(model, factory.orders, var_bundles)
     add_machine_exclusivity_and_downtime(
         model,
@@ -60,6 +66,7 @@ def build_cp_sat_model(
         norm.merged_downtimes,
         var_bundles,
         horizon,
+        factory.current_time_minute,
     )
 
     if objective_mode == ObjectiveMode.PURE_MAKESPAN:

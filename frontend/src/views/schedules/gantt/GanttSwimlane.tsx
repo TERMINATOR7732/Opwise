@@ -19,6 +19,7 @@ export interface GanttSwimlaneProps {
   selectedOperationId: string | null;
   onSelectOperation: (op: ScheduledOperationResponse) => void;
   isEvenRow: boolean;
+  currentTimeMinute?: number;
 }
 
 export function GanttSwimlane({
@@ -33,6 +34,7 @@ export function GanttSwimlane({
   selectedOperationId,
   onSelectOperation,
   isEvenRow,
+  currentTimeMinute,
 }: GanttSwimlaneProps): React.ReactElement {
   const laneHeight = 56;
   const opHeight = 36;
@@ -111,6 +113,20 @@ export function GanttSwimlane({
             );
           })}
 
+          {/* Plant Clock (t_now) vertical guideline */}
+          {currentTimeMinute !== undefined && currentTimeMinute > 0 && (
+            <line
+              x1={timeToPixel(currentTimeMinute, scale)}
+              y1={0}
+              x2={timeToPixel(currentTimeMinute, scale)}
+              y2={laneHeight}
+              stroke="#ef4444"
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
+              opacity={0.85}
+            />
+          )}
+
           {/* Downtime intervals */}
           {downtimes.map((dt) => {
             const dtX = timeToPixel(dt.start_minute, scale);
@@ -141,7 +157,6 @@ export function GanttSwimlane({
                     {dtWidth >= 55 ? 'MAINTENANCE' : 'MAINT'}
                   </text>
                 )}
-
               </g>
             );
           })}
@@ -152,7 +167,36 @@ export function GanttSwimlane({
             const opWidth = Math.max(timeToPixel(op.duration, scale), 6);
             const isSelected = op.operation_id === selectedOperationId;
             const colors = getOrderColor(op.order_id);
-            const opTitle = `Order: ${op.order_id}\nOperation: ${op.operation_id}\nSequence Step: #${op.sequence_index}\nMachine: ${op.machine_id}\nWindow: [${op.start_minute}, ${op.end_minute})m\nDuration: ${op.duration}m\nSlack: ${op.slack_minutes}m`;
+            const status = op.status || 'PLANNED';
+            const clock = currentTimeMinute ?? op.start_minute;
+
+            let opTitle = '';
+            let labelPrefix = '';
+            let strokeColor = colors.border;
+            let strokeDash = undefined;
+            let fillOpacity = 1.0;
+
+            if (status === 'COMPLETED') {
+              opTitle = `Order: ${op.order_id}\nOperation: ${op.operation_id}\nStatus: COMPLETED\nSequence Step: #${op.sequence_index}\nMachine: ${op.machine_id}\nHistorical Window: [${op.start_minute}, ${op.end_minute})m\nActual Duration: ${op.duration}m\nSlack: ${op.slack_minutes}m`;
+              labelPrefix = '✓ ';
+              strokeColor = '#10b981';
+              strokeDash = isSelected ? undefined : '4 2';
+              fillOpacity = 0.8;
+            } else if (status === 'IN_PROGRESS') {
+              const elapsedEnd = Math.min(clock, op.end_minute);
+              const remaining = Math.max(0, op.end_minute - clock);
+              opTitle = `Order: ${op.order_id}\nOperation: ${op.operation_id}\nStatus: IN_PROGRESS\nSequence Step: #${op.sequence_index}\nMachine: ${op.machine_id}\nExecution Window: [${op.start_minute}, ${op.end_minute})m\nElapsed: [${op.start_minute}, ${elapsedEnd})m\nRemaining Duration: ${remaining}m\nSlack: ${op.slack_minutes}m`;
+              labelPrefix = '● ';
+              strokeColor = '#0284c7';
+            } else {
+              opTitle = `Order: ${op.order_id}\nOperation: ${op.operation_id}\nStatus: PLANNED\nSequence Step: #${op.sequence_index}\nMachine: ${op.machine_id}\nScheduled Window: [${op.start_minute}, ${op.end_minute})m\nDuration: ${op.duration}m\nSlack: ${op.slack_minutes}m`;
+            }
+
+            // Elapsed portion calculation for in-progress operations
+            const elapsedWidth =
+              status === 'IN_PROGRESS' && clock > op.start_minute
+                ? Math.min(timeToPixel(clock - op.start_minute, scale), opWidth)
+                : 0;
 
             return (
               <g
@@ -177,10 +221,36 @@ export function GanttSwimlane({
                   height={opHeight}
                   rx={4}
                   fill={colors.bg}
-                  stroke={isSelected ? '#38bdf8' : colors.border}
+                  fillOpacity={fillOpacity}
+                  stroke={isSelected ? '#38bdf8' : strokeColor}
                   strokeWidth={isSelected ? 3 : 1.5}
+                  strokeDasharray={strokeDash}
                   filter={isSelected ? 'drop-shadow(0 0 4px rgba(56, 189, 248, 0.6))' : undefined}
                 />
+                {/* For in-progress operations, visually shade the elapsed portion */}
+                {elapsedWidth > 0 && (
+                  <rect
+                    width={elapsedWidth}
+                    height={opHeight}
+                    rx={4}
+                    fill="#000000"
+                    opacity={0.35}
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
+                {/* Active lock boundary line for in-progress operations */}
+                {elapsedWidth > 0 && elapsedWidth < opWidth && (
+                  <line
+                    x1={elapsedWidth}
+                    y1={0}
+                    x2={elapsedWidth}
+                    y2={opHeight}
+                    stroke="#38bdf8"
+                    strokeWidth={1.5}
+                    strokeDasharray="2 2"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
                 {/* Labels if space permits */}
                 {opWidth >= 44 ? (
                   <text
@@ -192,7 +262,7 @@ export function GanttSwimlane({
                     fontFamily="monospace"
                     style={{ pointerEvents: 'none' }}
                   >
-                    {op.order_id} #{op.sequence_index}
+                    {labelPrefix}{op.order_id} #{op.sequence_index}
                   </text>
                 ) : opWidth >= 24 ? (
                   <text
@@ -205,10 +275,9 @@ export function GanttSwimlane({
                     textAnchor="middle"
                     style={{ pointerEvents: 'none' }}
                   >
-                    #{op.sequence_index}
+                    {labelPrefix}#{op.sequence_index}
                   </text>
                 ) : null}
-
               </g>
             );
           })}

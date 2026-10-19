@@ -328,3 +328,122 @@ async def test_solver_timeout_unsuccessful_outcome(app_with_db: FastAPI) -> None
             assert data["metrics"]["best_objective_bound"] == 45
             assert data["solver_telemetry"]["wall_clock_time_seconds"] == 30.0
 
+
+@pytest.mark.asyncio
+async def test_optimize_execution_aware_with_plant_clock_and_lifecycle(app_with_db: FastAPI) -> None:
+    """Milestone 15B end-to-end integration test: factory with clock and mixed lifecycle operations."""
+    transport = httpx.ASGITransport(app=app_with_db)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        ws_id = (await client.post("/api/v1/workspaces", json={"name": "Execution-Aware WS"})).json()["data"]["id"]
+
+        clock = 40
+        factory_payload = {
+            "current_time_minute": clock,
+            "machines": [
+                {"external_id": "M1", "name": "Mill 1"},
+                {"external_id": "M2", "name": "Lathe 1"},
+            ],
+            "downtimes": [],
+            "orders": [
+                {
+                    "external_id": "ORD1",
+                    "name": "Job 1",
+                    "release_minute": 0,
+                    "due_minute": 100,
+                    "tardiness_weight": 1,
+                    "operations": [
+                        {
+                            "sequence_index": 1,
+                            "machine_id": "M1",
+                            "processing_minutes": 25,
+                            "status": "COMPLETED",
+                            "actual_start_minute": 0,
+                            "actual_end_minute": 25,
+                        },
+                        {
+                            "sequence_index": 2,
+                            "machine_id": "M2",
+                            "processing_minutes": 35,
+                            "status": "IN_PROGRESS",
+                            "actual_start_minute": 25,
+                            "remaining_duration_minutes": 20,
+                        },
+                    ],
+                },
+                {
+                    "external_id": "ORD2",
+                    "name": "Job 2",
+                    "release_minute": 10,
+                    "due_minute": 120,
+                    "tardiness_weight": 1,
+                    "operations": [
+                        {
+                            "sequence_index": 1,
+                            "machine_id": "M1",
+                            "processing_minutes": 30,
+                            "status": "PLANNED",
+                        }
+                    ],
+                },
+            ],
+        }
+        put_res = await client.put(f"/api/v1/workspaces/{ws_id}/factory", json=factory_payload)
+        assert put_res.status_code == 200
+        assert put_res.json()["data"]["current_time_minute"] == clock
+
+        # Optimize via API
+        opt_res = await client.post(
+            f"/api/v1/workspaces/{ws_id}/optimize",
+            json={"name": "Lifecycle Run", "objective_type": "PURE_MAKESPAN"},
+        )
+        assert opt_res.status_code == 200
+        opt_data = opt_res.json()["data"]
+        assert opt_data["solver_status"] == "OPTIMAL"
+        assert opt_data["verification_status"] == "VERIFIED"
+        assert opt_data["current_time_minute"] == clock
+
+        sched_id = opt_data["schedule_id"]
+        sched_ops = {op["operation_id"]: op for op in opt_data["scheduled_operations"]}
+        assert len(sched_ops) == 3
+
+        # Resolve generated machine IDs
+        factory_data = put_res.json()["data"]
+        m1_id = next(m["id"] for m in factory_data["machines"] if m["external_id"] == "M1")
+        m2_id = next(m["id"] for m in factory_data["machines"] if m["external_id"] == "M2")
+
+        # Find op by order and sequence
+        op_list = opt_data["scheduled_operations"]
+        op1 = next(op for op in op_list if op["sequence_index"] == 1 and op["machine_id"] == m1_id and op["status"] == "COMPLETED")
+        assert op1["start_minute"] == 0
+        assert op1["end_minute"] == 25
+        assert op1["status"] == "COMPLETED"
+
+        op2 = next(op for op in op_list if op["sequence_index"] == 2 and op["machine_id"] == m2_id)
+        assert op2["status"] == "IN_PROGRESS"
+        assert op2["start_minute"] == 25
+        assert op2["end_minute"] == clock + 20  # 60
+
+        op3 = next(op for op in op_list if op["sequence_index"] == 1 and op["status"] == "PLANNED")
+        assert op3["status"] == "PLANNED"
+        assert op3["machine_id"] == m1_id
+        assert op3["start_minute"] >= clock  # >= 40
+        assert op3["end_minute"] == op3["start_minute"] + 30
+
+        # Retrieve schedule details
+        detail_res = await client.get(f"/api/v1/workspaces/{ws_id}/schedules/{sched_id}")
+        assert detail_res.status_code == 200
+        detail_data = detail_res.json()["data"]
+        assert detail_data["current_time_minute"] == clock
+        assert len(detail_data["scheduled_operations"]) == 3
+        assert any(op["status"] == "COMPLETED" for op in detail_data["scheduled_operations"])
+        assert any(op["status"] == "IN_PROGRESS" for op in detail_data["scheduled_operations"])
+        assert any(op["status"] == "PLANNED" for op in detail_data["scheduled_operations"])
+
+        # Run on-demand verification
+        verif_res = await client.post(f"/api/v1/workspaces/{ws_id}/schedules/{sched_id}/verify")
+        assert verif_res.status_code == 200
+        verif_data = verif_res.json()["data"]
+        assert verif_data["is_valid"] is True
+        assert verif_data["violations"] == []
+
+

@@ -4,6 +4,7 @@ Governed by SOLVER_MODEL.md Section 4 and Section 5.
 """
 
 import time
+import uuid
 from dataclasses import replace
 
 from ortools.sat.python import cp_model
@@ -12,7 +13,9 @@ from opwise.domain.entities import (
     Factory,
     InputClassification,
     ObjectiveMode,
+    OperationStatus,
     Schedule,
+    ScheduledOperation,
     ScheduleKPIs,
     ScheduleStatus,
 )
@@ -40,6 +43,10 @@ class CPSATScheduler:
         validation = validate_factory_for_optimization(factory)
         if validation.classification == InputClassification.NO_WORK_STATE:
             return self._handle_no_work_state(factory, objective_mode)
+
+        all_ops = [op for order in factory.orders for op in order.operations]
+        if all_ops and all(op.status == OperationStatus.COMPLETED for op in all_ops):
+            return self._handle_all_completed_state(factory, objective_mode)
 
         # Step 2: Route according to single-objective vs hierarchical lexicographic mode
         if objective_mode in {ObjectiveMode.PURE_MAKESPAN, ObjectiveMode.PURE_WEIGHTED_TARDINESS}:
@@ -214,6 +221,7 @@ class CPSATScheduler:
             ),
             scheduled_operations=[],
             verified=False,
+            current_time_minute=factory.current_time_minute,
         )
         report = ScheduleVerifier().verify(factory, schedule)
         schedule.verified = report.is_valid
@@ -226,4 +234,107 @@ class CPSATScheduler:
             objective_value=0.0,
             best_bound=0.0,
             verification_report=report,
+        )
+
+    def _handle_all_completed_state(
+        self,
+        factory: Factory,
+        objective_mode: ObjectiveMode,
+    ) -> SolverResult:
+        """Construct an optimal verified schedule when all operations are already completed."""
+        scheduled_ops: list[ScheduledOperation] = []
+        for order in factory.orders:
+            sorted_ops = sorted(order.operations, key=lambda o: o.sequence_number)
+            n_ops = len(sorted_ops)
+            for i, op in enumerate(sorted_ops):
+                s = op.actual_start_minute if op.actual_start_minute is not None else 0
+                e = op.actual_end_minute if op.actual_end_minute is not None else s
+                if i < n_ops - 1:
+                    next_start_val = sorted_ops[i + 1].actual_start_minute
+                    next_s: int = next_start_val if next_start_val is not None else e
+                    slack = max(0, next_s - e)
+                else:
+                    slack = max(0, order.due_date_minutes - e)
+                scheduled_ops.append(
+                    ScheduledOperation(
+                        operation_id=op.id,
+                        order_id=order.id,
+                        machine_id=op.machine_id,
+                        sequence_number=op.sequence_number,
+                        start_minute=s,
+                        end_minute=e,
+                        processing_duration_minutes=e - s,
+                        slack_minutes=slack,
+                        status=OperationStatus.COMPLETED,
+                    )
+                )
+
+        verifier = ScheduleVerifier()
+        temp_sched = Schedule(
+            id="TEMP-RECOMPUTE",
+            workspace_id=factory.workspace_id,
+            status=ScheduleStatus.OPTIMAL,
+            objective_mode=objective_mode,
+            kpis=ScheduleKPIs(0, 0, 0, 100.0),
+            scheduled_operations=scheduled_ops,
+            current_time_minute=factory.current_time_minute,
+        )
+        recomputed = verifier.recompute_metrics(factory, temp_sched)
+        kpis = ScheduleKPIs(
+            makespan_minutes=recomputed.makespan_minutes,
+            total_weighted_tardiness=recomputed.total_weighted_tardiness,
+            late_order_count=recomputed.late_order_count,
+            on_time_rate=recomputed.on_time_rate,
+        )
+        schedule = Schedule(
+            id=f"SCHED-{uuid.uuid4().hex[:12].upper()}",
+            workspace_id=factory.workspace_id,
+            status=ScheduleStatus.OPTIMAL,
+            objective_mode=objective_mode,
+            kpis=kpis,
+            scheduled_operations=scheduled_ops,
+            verified=False,
+            current_time_minute=factory.current_time_minute,
+        )
+        report = verifier.verify(factory, schedule)
+        schedule.verified = report.is_valid
+
+        obj_val = (
+            float(kpis.makespan_minutes)
+            if objective_mode == ObjectiveMode.PURE_MAKESPAN
+            else float(kpis.total_weighted_tardiness)
+        )
+        st1_stat = (
+            ScheduleStatus.OPTIMAL
+            if objective_mode == ObjectiveMode.HIERARCHICAL_LEXICOGRAPHIC
+            else None
+        )
+        st1_obj = (
+            float(kpis.total_weighted_tardiness)
+            if objective_mode == ObjectiveMode.HIERARCHICAL_LEXICOGRAPHIC
+            else None
+        )
+        st2_stat = (
+            ScheduleStatus.OPTIMAL
+            if objective_mode == ObjectiveMode.HIERARCHICAL_LEXICOGRAPHIC
+            else None
+        )
+        st2_obj = (
+            float(kpis.makespan_minutes)
+            if objective_mode == ObjectiveMode.HIERARCHICAL_LEXICOGRAPHIC
+            else None
+        )
+
+        return SolverResult(
+            status=ScheduleStatus.OPTIMAL,
+            schedule=schedule,
+            objective_mode=objective_mode,
+            wall_clock_seconds=0.001,
+            objective_value=obj_val,
+            best_bound=obj_val,
+            verification_report=report,
+            stage1_status=st1_stat,
+            stage1_objective=st1_obj,
+            stage2_status=st2_stat,
+            stage2_objective=st2_obj,
         )

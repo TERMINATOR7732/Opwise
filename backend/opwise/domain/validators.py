@@ -395,6 +395,7 @@ def validate_factory_for_optimization(factory: Factory) -> FactoryValidationResu
     horizon = calculate_effective_horizon(
         orders=factory.orders,
         merged_downtimes=norm_result.merged_downtimes,
+        current_time_minute=factory.current_time_minute,
     )
 
     return FactoryValidationResult(

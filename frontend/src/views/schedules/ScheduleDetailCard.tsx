@@ -113,6 +113,7 @@ function ScheduleOpsTable({ s }: { s: ScheduleDetailResponse }): React.ReactElem
           <tr style={{ borderBottom: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
             <th style={{ padding: '0.5rem 0.625rem' }}>Order</th>
             <th style={{ padding: '0.5rem 0.625rem' }}>Step</th>
+            <th style={{ padding: '0.5rem 0.625rem' }}>Status</th>
             <th style={{ padding: '0.5rem 0.625rem' }}>Machine</th>
             <th style={{ padding: '0.5rem 0.625rem' }}>Window [Start, End)</th>
             <th style={{ padding: '0.5rem 0.625rem' }}>Duration</th>
@@ -124,6 +125,16 @@ function ScheduleOpsTable({ s }: { s: ScheduleDetailResponse }): React.ReactElem
             <tr key={op.operation_id || i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
               <td style={{ padding: '0.5rem 0.625rem', fontWeight: 600 }} className="font-mono">{op.order_id}</td>
               <td style={{ padding: '0.5rem 0.625rem' }} className="font-mono">#{op.sequence_index}</td>
+              <td style={{ padding: '0.5rem 0.625rem' }}>
+                {op.status ? (
+                  <Badge
+                    variant={op.status === 'COMPLETED' ? 'optimal' : op.status === 'IN_PROGRESS' ? 'warning' : 'neutral'}
+                    className="font-mono"
+                  >
+                    {op.status}
+                  </Badge>
+                ) : '—'}
+              </td>
               <td style={{ padding: '0.5rem 0.625rem' }} className="font-mono">{op.machine_id}</td>
               <td style={{ padding: '0.5rem 0.625rem' }} className="font-mono">[{op.start_minute}, {op.end_minute})</td>
               <td style={{ padding: '0.5rem 0.625rem' }} className="font-mono">{op.duration}m</td>
@@ -157,6 +168,7 @@ export function ScheduleDetailCard({ schedule, workspaceId, onClose }: ScheduleD
           operations={schedule.scheduled_operations}
           downtimes={schedule.downtimes}
           machines={schedule.machines}
+          currentTimeMinute={schedule.current_time_minute}
         />
 
         <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>

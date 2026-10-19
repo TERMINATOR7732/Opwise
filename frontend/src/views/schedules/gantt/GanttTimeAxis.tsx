@@ -11,6 +11,7 @@ export interface GanttTimeAxisProps {
   scale: number;
   timelineWidth: number;
   labelColumnWidth: number;
+  currentTimeMinute?: number;
 }
 
 export function GanttTimeAxis({
@@ -18,6 +19,7 @@ export function GanttTimeAxis({
   scale,
   timelineWidth,
   labelColumnWidth,
+  currentTimeMinute,
 }: GanttTimeAxisProps): React.ReactElement {
   const headerHeight = 32;
 
@@ -85,6 +87,31 @@ export function GanttTimeAxis({
               </g>
             );
           })}
+
+          {/* Plant Clock (t_now) Marker */}
+          {currentTimeMinute !== undefined && currentTimeMinute > 0 && (
+            <g transform={`translate(${timeToPixel(currentTimeMinute, scale)}, 0)`}>
+              <line
+                x1={0}
+                y1={0}
+                x2={0}
+                y2={headerHeight}
+                stroke="#ef4444"
+                strokeWidth={2}
+              />
+              <polygon points="-4,0 4,0 0,5" fill="#ef4444" />
+              <text
+                x={4}
+                y={11}
+                fontSize={9}
+                fill="#ef4444"
+                fontWeight={700}
+                fontFamily="monospace"
+              >
+                NOW ({currentTimeMinute}m)
+              </text>
+            </g>
+          )}
         </svg>
       </div>
     </div>

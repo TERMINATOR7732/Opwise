@@ -14,6 +14,7 @@ from opwise.domain.entities import (
     Factory,
     MachineDowntime,
     Operation,
+    OperationStatus,
     ScheduledOperation,
 )
 from opwise.verifier.verification_types import (
@@ -69,7 +70,7 @@ def audit_duration_and_machine(
     factory: Factory,
     scheduled_ops: list[ScheduledOperation],
 ) -> list[InvariantViolation]:
-    """Invariant 2: C - S == p and machine matches required workstation."""
+    """Invariant 2: Operation duration and timestamps match status, and machine matches required workstation."""
     violations: list[InvariantViolation] = []
     op_lookup: dict[str, Operation] = {
         op.id: op for order in factory.orders for op in order.operations
@@ -80,22 +81,101 @@ def audit_duration_and_machine(
         if not f_op:
             continue
 
-        actual_duration = s_op.end_minute - s_op.start_minute
-        if actual_duration != f_op.processing_duration_minutes:
+        if s_op.status != f_op.status:
             violations.append(
                 InvariantViolation(
                     rule=InvariantRule.INV_2_DURATION_MACHINE,
                     entity_type="Operation",
                     entity_id=s_op.operation_id,
                     message=(
-                        f"Operation '{s_op.operation_id}' duration mismatch: "
-                        f"span [{s_op.start_minute}, {s_op.end_minute}) = {actual_duration}m, "
-                        f"expected {f_op.processing_duration_minutes}m."
+                        f"Operation '{s_op.operation_id}' status mismatch: "
+                        f"schedule has {s_op.status.value if hasattr(s_op.status, 'value') else s_op.status}, "
+                        f"expected {f_op.status.value}."
                     ),
-                    expected=f_op.processing_duration_minutes,
-                    actual=actual_duration,
                 )
             )
+
+        if f_op.status == OperationStatus.PLANNED:
+            actual_duration = s_op.end_minute - s_op.start_minute
+            if actual_duration != f_op.processing_duration_minutes:
+                violations.append(
+                    InvariantViolation(
+                        rule=InvariantRule.INV_2_DURATION_MACHINE,
+                        entity_type="Operation",
+                        entity_id=s_op.operation_id,
+                        message=(
+                            f"Operation '{s_op.operation_id}' duration mismatch: "
+                            f"span [{s_op.start_minute}, {s_op.end_minute}) = {actual_duration}m, "
+                            f"expected {f_op.processing_duration_minutes}m."
+                        ),
+                        expected=f_op.processing_duration_minutes,
+                        actual=actual_duration,
+                    )
+                )
+        elif f_op.status == OperationStatus.COMPLETED:
+            if f_op.actual_start_minute is not None and s_op.start_minute != f_op.actual_start_minute:
+                violations.append(
+                    InvariantViolation(
+                        rule=InvariantRule.INV_2_DURATION_MACHINE,
+                        entity_type="Operation",
+                        entity_id=s_op.operation_id,
+                        message=(
+                            f"Completed operation '{s_op.operation_id}' start mismatch: "
+                            f"schedule has {s_op.start_minute}, expected actual start {f_op.actual_start_minute}."
+                        ),
+                        expected=f_op.actual_start_minute,
+                        actual=s_op.start_minute,
+                    )
+                )
+            if f_op.actual_end_minute is not None and s_op.end_minute != f_op.actual_end_minute:
+                violations.append(
+                    InvariantViolation(
+                        rule=InvariantRule.INV_2_DURATION_MACHINE,
+                        entity_type="Operation",
+                        entity_id=s_op.operation_id,
+                        message=(
+                            f"Completed operation '{s_op.operation_id}' end mismatch: "
+                            f"schedule has {s_op.end_minute}, expected actual end {f_op.actual_end_minute}."
+                        ),
+                        expected=f_op.actual_end_minute,
+                        actual=s_op.end_minute,
+                    )
+                )
+        elif f_op.status == OperationStatus.IN_PROGRESS:
+            if f_op.actual_start_minute is not None and s_op.start_minute != f_op.actual_start_minute:
+                violations.append(
+                    InvariantViolation(
+                        rule=InvariantRule.INV_2_DURATION_MACHINE,
+                        entity_type="Operation",
+                        entity_id=s_op.operation_id,
+                        message=(
+                            f"In-progress operation '{s_op.operation_id}' start mismatch: "
+                            f"schedule has {s_op.start_minute}, expected actual start {f_op.actual_start_minute}."
+                        ),
+                        expected=f_op.actual_start_minute,
+                        actual=s_op.start_minute,
+                    )
+                )
+            expected_end = factory.current_time_minute + (
+                f_op.remaining_duration_minutes
+                if f_op.remaining_duration_minutes is not None
+                else f_op.processing_duration_minutes
+            )
+            if s_op.end_minute != expected_end:
+                violations.append(
+                    InvariantViolation(
+                        rule=InvariantRule.INV_2_DURATION_MACHINE,
+                        entity_type="Operation",
+                        entity_id=s_op.operation_id,
+                        message=(
+                            f"In-progress operation '{s_op.operation_id}' end mismatch: "
+                            f"schedule has {s_op.end_minute}, expected {expected_end} "
+                            f"(clock {factory.current_time_minute} + remaining {f_op.remaining_duration_minutes})."
+                        ),
+                        expected=expected_end,
+                        actual=s_op.end_minute,
+                    )
+                )
 
         if s_op.machine_id != f_op.machine_id:
             violations.append(
@@ -118,7 +198,7 @@ def audit_release_times(
     factory: Factory,
     scheduled_ops: list[ScheduledOperation],
 ) -> list[InvariantViolation]:
-    """Invariant 3: First operation of an order must start at or after release time."""
+    """Invariant 3: First operation of an order must start at or after release time, and planned ops >= t_0."""
     violations: list[InvariantViolation] = []
     ops_by_order: dict[str, list[ScheduledOperation]] = defaultdict(list)
     for s_op in scheduled_ops:
@@ -143,6 +223,23 @@ def audit_release_times(
                     actual=first_op.start_minute,
                 )
             )
+
+    for s_op in scheduled_ops:
+        if s_op.status == OperationStatus.PLANNED and s_op.start_minute < factory.current_time_minute:
+            violations.append(
+                InvariantViolation(
+                    rule=InvariantRule.INV_3_RELEASE_TIME,
+                    entity_type="Operation",
+                    entity_id=s_op.operation_id,
+                    message=(
+                        f"Planned operation '{s_op.operation_id}' starts at minute {s_op.start_minute}, "
+                        f"prior to plant clock {factory.current_time_minute}."
+                    ),
+                    expected=factory.current_time_minute,
+                    actual=s_op.start_minute,
+                )
+            )
+
     return violations
 
 
@@ -250,7 +347,9 @@ def audit_horizon_bounds(
     """Invariant 7: Timestamps must be non-negative integers bounded by dynamic horizon H."""
     violations: list[InvariantViolation] = []
     norm = normalize_machine_downtimes(factory.downtimes)
-    horizon = calculate_effective_horizon(factory.orders, norm.merged_downtimes)
+    horizon = calculate_effective_horizon(
+        factory.orders, norm.merged_downtimes, factory.current_time_minute
+    )
 
     for s_op in scheduled_ops:
         if s_op.start_minute < 0:

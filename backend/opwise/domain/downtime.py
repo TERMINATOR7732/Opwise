@@ -3,7 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from opwise.domain.entities import MachineDowntime
+from opwise.domain.entities import MachineDowntime, OperationStatus
 from opwise.domain.exceptions import InvalidIntervalError
 
 if TYPE_CHECKING:
@@ -94,23 +94,42 @@ def normalize_machine_downtimes(
 def calculate_effective_horizon(
     orders: list["ProductionOrder"],
     merged_downtimes: list[MachineDowntime],
+    current_time_minute: int = 0,
     max_cap: int = 10_000_000,
     overflow_limit: int = 2_147_483_647,
 ) -> int:
     """Compute the safe dynamic scheduling horizon H with overflow guards.
 
-    Formula:
-        H = max(r_j) + sum(p_j,k) + sum(MergedDowntimeDuration_m)
+    Execution-Aware Formula:
+        base_start = max(max(r_j), current_time_minute)
+        future_work = sum(p_planned) + sum(remaining_in_progress)
+        max_historical_end = max(actual_end_completed)
+        H = max(base_start + future_work + sum(downtimes), max_historical_end)
     """
     from opwise.domain.exceptions import IntegerOverflowError
 
     max_release: int = max((o.release_time_minutes for o in orders), default=0)
-    total_processing: int = sum(
-        op.processing_duration_minutes for o in orders for op in o.operations
-    )
+    base_start: int = max(max_release, current_time_minute)
+
+    future_work: int = 0
+    max_historical_end: int = 0
+
+    for o in orders:
+        for op in o.operations:
+            if op.status == OperationStatus.PLANNED:
+                future_work += op.processing_duration_minutes
+            elif op.status == OperationStatus.IN_PROGRESS:
+                future_work += (
+                    op.remaining_duration_minutes
+                    if op.remaining_duration_minutes is not None
+                    else op.processing_duration_minutes
+                )
+            elif op.status == OperationStatus.COMPLETED and op.actual_end_minute is not None:
+                max_historical_end = max(max_historical_end, op.actual_end_minute)
+
     total_downtime: int = sum(dt.duration_minutes for dt in merged_downtimes)
 
-    horizon: int = max_release + total_processing + total_downtime
+    horizon: int = max(base_start + future_work + total_downtime, max_historical_end)
 
     if horizon > overflow_limit:
         raise IntegerOverflowError(calculated_horizon=horizon, max_allowed=overflow_limit)

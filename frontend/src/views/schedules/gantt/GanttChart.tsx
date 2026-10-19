@@ -27,6 +27,7 @@ export interface GanttChartProps {
   operations: ScheduledOperationResponse[];
   downtimes?: DowntimeResponse[];
   machines?: MachineDescriptor[];
+  currentTimeMinute?: number;
 }
 
 const DEFAULT_SCALE = 2.0; // 2 pixels per minute
@@ -42,6 +43,7 @@ export function GanttChart({
   operations,
   downtimes = [],
   machines = [],
+  currentTimeMinute,
 }: GanttChartProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState<number>(DEFAULT_SCALE);
@@ -64,10 +66,11 @@ export function GanttChart({
   // Calculate timeline bounds and ticks
   const maxMinute = useMemo(() => {
     let max = makespanMinutes;
+    if (currentTimeMinute !== undefined) max = Math.max(max, currentTimeMinute);
     for (const op of operations) max = Math.max(max, op.end_minute);
     for (const dt of downtimes) max = Math.max(max, dt.end_minute);
     return Math.max(max, 60);
-  }, [makespanMinutes, operations, downtimes]);
+  }, [makespanMinutes, currentTimeMinute, operations, downtimes]);
 
   const ticks = useMemo(() => calculateTimeTicks(maxMinute, scale), [maxMinute, scale]);
   const timelineWidth = Math.max(timeToPixel(maxMinute, scale) + 80, 600);
@@ -142,6 +145,11 @@ export function GanttChart({
           </span>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          {currentTimeMinute !== undefined && currentTimeMinute > 0 && (
+            <Badge variant="warning" className="font-mono">
+              PLANT CLOCK: {currentTimeMinute}m
+            </Badge>
+          )}
           <Badge variant={solverBadgeVariant} className="font-mono">
             {isOptimal ? 'CP-SAT OPTIMAL' : solverStatus}
           </Badge>
@@ -190,6 +198,7 @@ export function GanttChart({
             scale={scale}
             timelineWidth={timelineWidth}
             labelColumnWidth={LABEL_WIDTH}
+            currentTimeMinute={currentTimeMinute}
           />
 
           {activeMachines.length === 0 || (operations.length === 0 && downtimes.length === 0) ? (
@@ -215,6 +224,7 @@ export function GanttChart({
                   scale={scale}
                   timelineWidth={timelineWidth}
                   labelColumnWidth={LABEL_WIDTH}
+                  currentTimeMinute={currentTimeMinute}
                   selectedOperationId={selectedOp?.operation_id || null}
                   onSelectOperation={(op) => setSelectedOp(op)}
                   isEvenRow={index % 2 === 0}

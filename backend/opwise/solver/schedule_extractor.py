@@ -61,8 +61,9 @@ def extract_schedule_operations(
                     sequence_number=seq,
                     start_minute=start,
                     end_minute=end,
-                    processing_duration_minutes=bundle.operation.processing_duration_minutes,
+                    processing_duration_minutes=end - start,
                     slack_minutes=slack,
+                    status=bundle.operation.status,
                 )
             )
 
@@ -94,6 +95,7 @@ def extract_and_verify_schedule(
             on_time_rate=100.0,
         ),
         scheduled_operations=scheduled_ops,
+        current_time_minute=factory.current_time_minute,
     )
     recomputed = verifier.recompute_metrics(factory, temp_schedule)
 
@@ -112,6 +114,7 @@ def extract_and_verify_schedule(
         kpis=kpis,
         scheduled_operations=scheduled_ops,
         verified=False,
+        current_time_minute=factory.current_time_minute,
     )
 
     report = verifier.verify(factory, candidate_schedule, stage1_bound=stage1_bound)

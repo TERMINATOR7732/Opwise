@@ -35,7 +35,7 @@ class OperationVarBundle:
     operation: Operation
     start_var: "cp_model.IntVar"
     end_var: "cp_model.IntVar"
-    interval_var: "cp_model.IntervalVar"
+    interval_var: "cp_model.IntervalVar | None" = None
 
 
 @dataclass(frozen=True)

@@ -158,6 +158,8 @@ export interface OptimizeRequest {
   parameters?: OptimizeParameters;
 }
 
+export type OperationStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED';
+
 export interface ScheduledOperationResponse {
   operation_id: string;
   order_id: string;
@@ -167,6 +169,7 @@ export interface ScheduledOperationResponse {
   end_minute: number;
   duration: number;
   slack_minutes: number;
+  status?: OperationStatus;
 }
 
 export interface ScheduleMetricsResponse {
@@ -219,6 +222,7 @@ export interface OptimizeResponseData {
   scheduled_operations: ScheduledOperationResponse[];
   downtimes?: DowntimeResponse[];
   machines?: ScheduleMachineResponse[];
+  current_time_minute?: number;
 }
 
 export interface ScheduleDetailResponse {
@@ -236,6 +240,7 @@ export interface ScheduleDetailResponse {
   downtimes?: DowntimeResponse[];
   machines?: ScheduleMachineResponse[];
   created_at: string;
+  current_time_minute?: number;
 }
 
 export interface ImportRowError {
