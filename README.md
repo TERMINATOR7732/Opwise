@@ -2,39 +2,207 @@
 
 **Portfolio Project #4** | *Operations Research & Job Shop Scheduling*
 
-Opwise is a local-first production planning and discrete optimization platform designed for discrete job shops. The application uses Google OR-Tools CP-SAT constraint programming to generate provably optimal or bounded schedules, render interactive Gantt visualizations, audit schedules with an independent clean-room verifier, provide deterministic explanations, and simulate disruption scenarios.
+Opwise is a local-first production planning, discrete optimization, and shop-floor operations platform engineered for discrete job shops. Powered by Google OR-Tools CP-SAT constraint programming, Opwise solves complex multi-machine, multi-job sequencing problems with proven bounds, renders interactive Gantt visualizations, audits schedules with an independent clean-room verifier, simulates real-time machine breakdowns and rush orders, and tracks physical shop-floor execution against a simulated plant clock.
 
 ---
 
-## Phase 0.3: Project Constitution, Zero-Cost Architecture & GitHub Readiness Gate
+## 1. Key Engineering Capabilities
 
-This workspace houses the complete, audited **Phase 0.3 Pre-Implementation Specification Package and Project Constitution**. In strict accordance with the Phase 0 scope boundary, application source code has not yet been initialized, no packages have been installed, no database has been created, and Git has not been initialized.
+- **Constraint Programming Optimization Engine:**
+  - Formulated with Google OR-Tools CP-SAT 9.15.
+  - Supports `PURE_MAKESPAN` ($\min C_{\max}$), `PURE_WEIGHTED_TARDINESS` ($\min \sum w_j T_j$), and two-stage hierarchical lexicographic multi-objective optimization with strict proof gating.
+  - Enforces machine exclusivity (`AddNoOverlap`), half-open non-collision intervals $[start, end)$, and maintenance window boundaries $[s, e) \cap [e, d) = \emptyset$.
+- **Clean-Room Independent Schedule Verifier:**
+  - Audits 8 core domain invariants (precedence, machine exclusivity, downtime non-collision, release time compliance, non-zero durations, sequence continuity, horizon bounds, and objective consistency).
+  - Decoupled from OR-Tools and persistence; implemented in both pure Python (backend) and TypeScript (frontend client).
+  - Validated by mutant test suites injecting falsified schedules and constraint reversals.
+- **Shop-Floor Execution Controls & Plant Clock (Milestone 15):**
+  - Discrete, monotonic plant-clock advancement with linear remaining-duration decrements.
+  - Operation lifecycle states: `PLANNED`, `IN_PROGRESS`, and `COMPLETED`.
+  - Policy B Overdue Reconciliation: Requires supervisor action (marking completed at destination clock or overriding remaining work) when elapsed time reaches or exceeds estimates.
+  - Optimistic concurrency fencing (`expected_current_time_minute` token returning HTTP 409 `STALE_EXECUTION_STATE`) and SQLite touch write-lock serialization.
+- **Interactive High-Density Gantt Canvas:**
+  - Horizontal machine swimlanes with minute-precision half-open blocks, diagonal downtime hatchings, zoom/pan navigation, and hover precedence highlighting.
+  - Contextual dispatching controls (`Start`, `Complete`, `Running`) embedded in the Orders Tab and Gantt Inspection Drawer.
+- **Scenario Disruption & Recovery Lab:**
+  - Branch from immutable baseline schedules to inject rush orders, machine breakdown windows, or operation duration delays.
+  - Side-by-side comparative Gantt charts and differential KPI badges ($\Delta C_{\max}$, $\Delta$ late orders).
+- **Two-Phase CSV & Microsoft Excel Data Exchange:**
+  - Phase 1 in-memory preview with row-level validation and canonical downtime normalization (merging overlapping or contiguous intervals).
+  - Phase 2 atomic database commit with formula injection escaping (`'` prefix on `=, +, -, @`) and XXE-safe workbook parsing.
+- **Zero-Cost Local Architecture:**
+  - ₹0 operating budget, zero external paid cloud dependencies, zero AI chat wrappers.
+  - Local SQLite 3 WAL persistence with foreign key constraints, transactional rollback, and Alembic schema migrations.
 
-### Specification & Governance Suite
+---
+
+## 2. System Architecture
+
+Opwise is organized as a clean, decoupled monorepo:
+
+```
+Opwise/
+├── backend/                        # FastAPI + SQLAlchemy + OR-Tools Backend
+│   ├── alembic/                    # Database migrations (revisions 001–004)
+│   ├── opwise/
+│   │   ├── api/                    # Versioned REST routers (/api/v1) & schemas
+│   │   ├── domain/                 # Pure domain entities, validators & metrics
+│   │   ├── io/                     # CSV & Excel parsers and templates
+│   │   ├── persistence/            # SQLite models & repositories (WAL mode)
+│   │   ├── services/               # Execution, factory, scenario & optimization services
+│   │   ├── solver/                 # CP-SAT model formulation & lexicographic solver
+│   │   └── verifier/               # 8-invariant independent schedule verifier
+│   └── tests/                      # 244 unit, mutant, integration & concurrency tests
+├── frontend/                       # React 19 + TypeScript + Vite Frontend
+│   ├── src/
+│   │   ├── api/                    # Typed HTTP client & endpoints
+│   │   ├── components/             # Reusable UI, layout, Gantt & execution modals
+│   │   ├── context/                # Workspace & factory mutation providers
+│   │   ├── demo/                   # Standalone client demo mode & fixtures 1–6
+│   │   ├── views/                  # 6 navigation pillars (Factory, Schedules, Scenarios, etc.)
+│   │   └── tests/                  # 120 Vitest unit, component & verifier tests
+└── .github/workflows/              # Automated CI & GitHub Pages deployment workflows
+```
+
+---
+
+## 3. Technology Stack
+
+| Layer | Technologies |
+|---|---|
+| **Backend Service** | Python 3.12, FastAPI 0.115, Pydantic v2.10, Uvicorn |
+| **Optimization** | Google OR-Tools CP-SAT 9.11+ |
+| **Database & ORM** | SQLite 3 (WAL mode, PRAGMA synchronous=NORMAL, foreign_keys=ON), SQLAlchemy 2.0 (asyncio), Alembic |
+| **Frontend SPA** | React 19, TypeScript 5.7, Vite 6.0 |
+| **Data Exchange** | OpenPyXL (Excel), Python CSV reader/writer with formula sanitization |
+| **Testing** | pytest, pytest-cov, pytest-asyncio, Vitest |
+| **Code Hygiene** | Ruff (linter/formatter), Mypy (strict static typing) |
+
+---
+
+## 4. Local Setup & Execution Guide
+
+### Prerequisites
+- Python 3.12 or newer
+- Node.js 22 or newer (with npm 10+)
+- Git
+
+### 1. Backend Setup
+```bash
+# Navigate to backend directory
+cd backend
+
+# Create and activate virtual environment
+python -m venv .venv
+
+# Windows:
+.\.venv\Scripts\activate
+# Linux/macOS:
+# source .venv/bin/activate
+
+# Install production and development dependencies
+pip install --upgrade pip
+pip install -r requirements.txt -r requirements-dev.txt
+
+# Run database migrations to latest schema revision
+alembic upgrade head
+
+# Start local FastAPI backend (runs on http://127.0.0.1:8000)
+uvicorn opwise.main:create_app --factory --host 127.0.0.1 --port 8000 --reload
+```
+
+Interactive OpenAPI documentation is available at `http://127.0.0.1:8000/docs`.
+
+### 2. Frontend Setup
+```bash
+# In a separate terminal, navigate to frontend directory
+cd frontend
+
+# Install npm dependencies
+npm ci
+
+# Start Vite development server (runs on http://localhost:5173)
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser. The Vite development proxy forwards all `/api` requests to `http://127.0.0.1:8000`.
+
+---
+
+## 5. Automated Verification & Quality Gates
+
+Run the project verification commands from their respective directories:
+
+### Backend Checks
+```bash
+cd backend
+
+# 1. Code hygiene and linting (Ruff)
+ruff check .
+
+# 2. Strict static type analysis (Mypy)
+mypy --strict opwise
+
+# 3. Unit, integration, concurrency, and verifier tests with coverage
+pytest tests/ -v --cov=opwise --cov-report=term-missing
+```
+*Current test suite status: **244 / 244 passed** (83% overall coverage).*
+
+### Frontend Checks
+```bash
+cd frontend
+
+# 1. Strict TypeScript type check
+npm run typecheck
+
+# 2. Vitest unit, component, and client-verifier tests
+npm run test
+
+# 3. Production bundle build
+npm run build
+
+# 4. Standalone static demo bundle build
+npm run build:demo
+```
+*Current test suite status: **120 / 120 passed** across 13 test files.*
+
+---
+
+## 6. Portfolio Demo Deployment & URL
+
+Opwise includes a standalone client-side demo mode designed for zero-cost hosting on **GitHub Pages**:
+
+- **Target Public Demo URL:** [`https://terminator7732.github.io/Opwise/`](https://terminator7732.github.io/Opwise/)
+- **Live Status Notice:**
+  > [!NOTE]
+  > The GitHub Pages deployment workflow ([`.github/workflows/deploy-demo.yml`](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/.github/workflows/deploy-demo.yml)) is fully configured and builds the static demo bundle targeting the `/Opwise/` base path.
+  >
+  > **Public live access is pending one-time repository owner enablement in GitHub:**
+  > In the repository settings (**Settings → Pages → Build and deployment → Source**), select **"GitHub Actions"**. Once enabled, pushing to `main` automatically deploys the live demo.
+- **Client-Side Demo Features:**
+  - 6 pre-solved synthetic industrial demo fixtures (Normal, Bottleneck, High Load, Urgent Orders, Machine Downtime, and Invalid/Corrupt Input).
+  - Pure TypeScript Clean-Room Verifier running entirely in the browser to audit the 8 domain invariants live.
+  - Interactive Gantt chart with zoom, pan, and slack tooltips without requiring a running Python backend.
+
+---
+
+## 7. Specification & Governance Archive
 
 | Document | Description |
-| :--- | :--- |
-| **[PROJECT_RULES.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/PROJECT_RULES.md)** | **Permanent Project Constitution** — Non-negotiable rules governing ₹0 operating cost, tiered deployment topology, professional industrial UI/UX (anti-AI-slop), readable code, continuous GitHub backup, test-first verification, security/licensing, and mandatory operational checklists. |
-| **[SPECIFICATION.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/SPECIFICATION.md)** | **Authoritative Master Specification** — Product definition, workflows, MVP boundaries, 6 input edge cases, downtime normalization, unified metrics, deterministic explanations, disruption simulation rules, 6 navigation pillars, schedule results canvas requirements, and 6 synthetic demo scenarios. |
-| **[ARCHITECTURE.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/ARCHITECTURE.md)** | **System Architecture & Blueprint** — Clean monorepo structure, component responsibilities, dependency flow, tiered deployment topology (Localhost, GitHub Pages, Docker), contributor code navigation guide, configuration, and logging. |
-| **[SOLVER_MODEL.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/SOLVER_MODEL.md)** | **Mathematical Formulation & Solver Contract** — Input classification, downtime boundary non-collision, canonical merge normalization, horizon overflow safeguards, objectives, lexicographic state transition matrix, and 8-invariant independent verifier. |
-| **[DATA_AND_API.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DATA_AND_API.md)** | **Persistence & REST API Specification** — Relational SQLite WAL schema, SQLAlchemy 2.0 models, OpenAPI 3.1 endpoints (`/api/v1`), explicit error envelopes for empty/invalid inputs, static demo mode limitations, and CSV/Excel import/export formats. |
-| **[TEST_AND_RELEASE_PLAN.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/TEST_AND_RELEASE_PLAN.md)** | **Acceptance Matrix & Verification Protocol** — 23-row final acceptance matrix, 16-category test matrix, 14-milestone practical implementation roadmap, resolution of the 4 verification gates, persistence recovery tests, and 12 production release gates. |
-| **[DECISIONS.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DECISIONS.md)** | **Architecture Decision Records (ADRs)** — ADR 001–012 documenting rationale for local-first SQLite WAL durability, CP-SAT formulation, clean-room verification, synthetic benchmarks, version pinning, empty input policies (ADR-009), downtime normalization (ADR-010), ₹0 deployment topology (ADR-011), and continuous GitHub backup policy (ADR-012). |
+|---|---|
+| [PROJECT_RULES.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/PROJECT_RULES.md) | Permanent constitution: ₹0 operating cost, anti-AI-slop UI, evidence-backed tests. |
+| [SPECIFICATION.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/SPECIFICATION.md) | Authoritative product specification, workflows, and 6 synthetic demo definitions. |
+| [ARCHITECTURE.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/ARCHITECTURE.md) | Monorepo blueprint, component responsibilities, and deployment topology. |
+| [SOLVER_MODEL.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/SOLVER_MODEL.md) | Mathematical formulation, half-open interval contact, and verifier contracts. |
+| [DATA_AND_API.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DATA_AND_API.md) | Relational schema, SQLite WAL configuration, and OpenAPI 3.1 endpoint envelopes. |
+| [TEST_AND_RELEASE_PLAN.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/TEST_AND_RELEASE_PLAN.md) | Verification protocol, 16 test categories, and 12 production release gates. |
+| [DECISIONS.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DECISIONS.md) | Architecture Decision Records (ADRs 001–012). |
+| [MILESTONE_14_RELEASE_AUDIT.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/MILESTONE_14_RELEASE_AUDIT.md) | Phase 1 release readiness audit and verification log. |
+| [MILESTONE_15D_SCOPE_PROPOSAL.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/MILESTONE_15D_SCOPE_PROPOSAL.md) | Phase 2 shop-floor execution controls specification of record. |
+| [MILESTONE_15D_POST_IMPLEMENTATION_AUDIT_REPORT.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/MILESTONE_15D_POST_IMPLEMENTATION_AUDIT_REPORT.md) | Phase 2 independent post-implementation audit & release remediation log. |
 
 ---
 
-## Technology Stack & Deployment Topology
+## 8. License
 
-- **Backend:** Python 3.12, FastAPI 0.143, Pydantic v2.14, SQLAlchemy 2.1, Uvicorn *(Metadata Verified)*
-- **Optimization:** Google OR-Tools CP-SAT 9.15.6755 (`ortools-9.15.6755-cp312-cp312-win_amd64.whl` on PyPI) *(Metadata Verified)*
-- **Verification:** Decoupled Clean-Room Invariant Verifier (8 operational invariants audited in Python backend and TypeScript frontend) *(Specification Defined)*
-- **Persistence:** Local SQLite 3 (WAL mode, `synchronous = NORMAL`, per-connection foreign keys, `VACUUM INTO` backups) *(Specification Defined)*
-- **Frontend:** React 19, TypeScript 5.8, Vite 6.2, Tailwind CSS *(Metadata Verified)*
-- **Data Exchange:** Strict CSV and Microsoft Excel (`.xlsx` via openpyxl) with canonical downtime normalization and formula injection escaping *(Specification Defined)*
-- **Testing:** pytest (backend), Vitest / React Testing Library (frontend), Playwright (E2E) *(Specification Defined)*
-- **Deployment Topology:**
-  - **Tier 1 (Canonical Engine):** Localhost execution (`127.0.0.1:8000` + `localhost:5173`) with live CP-SAT solving and durable SQLite WAL storage.
-  - **Tier 2 (Public Portfolio Demo):** Permanent ₹0 static web app hosted on GitHub Pages running Standalone Client-Side Demo Mode (pre-solved synthetic fixtures Demo 1–6 + client-side verifier).
-  - **Tier 3 (Reviewer Runner):** Portable Docker Compose container or native launcher script for on-demand local evaluation.
-
+Opwise is open-source software licensed under the [MIT License](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/LICENSE).
