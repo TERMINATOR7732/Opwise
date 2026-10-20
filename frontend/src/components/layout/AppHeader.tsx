@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useOptionalFactory } from '../../context/FactoryContext';
 import { apiEndpoints } from '../../api/endpoints';
 import { Button } from '../common/Button';
+import { ClockAdvanceModal, InProgressOpInfo } from '../execution/ClockAdvanceModal';
 
 export interface AppHeaderProps {
   onToggleSidebar?: () => void;
@@ -230,15 +232,90 @@ function useBackendStatus(): boolean | null {
   return isOnline;
 }
 
+function PlantClockWidget({
+  currentTime,
+  onOpenAdvance,
+  disabled,
+}: {
+  currentTime: number;
+  onOpenAdvance: () => void;
+  disabled?: boolean;
+}): React.ReactElement {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        padding: '0.25rem 0.6rem',
+        backgroundColor: 'var(--bg-app)',
+        borderRadius: 'var(--radius-sm)',
+        border: '1px solid var(--border-subtle)',
+        fontSize: '0.75rem',
+      }}
+      title="Plant Clock represents current operational simulated shop floor minute"
+    >
+      <span style={{ fontSize: '0.875rem' }} aria-hidden="true">⏱️</span>
+      <span style={{ color: 'var(--text-secondary)' }}>Plant Clock:</span>
+      <strong className="font-mono" style={{ color: 'var(--color-primary)' }}>t₀ = {currentTime}m</strong>
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={onOpenAdvance}
+        disabled={disabled}
+        style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', marginLeft: '0.25rem' }}
+      >
+        Advance
+      </Button>
+    </div>
+  );
+}
+
 export function AppHeader({ onToggleSidebar, isSidebarOpen }: AppHeaderProps): React.ReactElement {
   const { workspaces, activeWorkspaceId, selectWorkspace, createWorkspace, status } = useWorkspace();
+  const factoryCtx = useOptionalFactory();
   const isOnline = useBackendStatus();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAdvanceModal, setShowAdvanceModal] = useState(false);
+
+  const inProgressOps = useMemo(() => {
+    if (!factoryCtx?.factory) return [];
+    const ops: InProgressOpInfo[] = [];
+    for (const o of factoryCtx.factory.orders) {
+      for (const op of o.operations) {
+        if (
+          op.status === 'IN_PROGRESS' &&
+          typeof op.actual_start_minute === 'number' &&
+          typeof op.remaining_duration_minutes === 'number'
+        ) {
+          ops.push({
+            id: op.id,
+            orderExternalId: o.external_id,
+            orderName: o.name,
+            sequenceIndex: op.sequence_index,
+            machineId: op.machine_id,
+            actualStartMinute: op.actual_start_minute,
+            remainingDurationMinutes: op.remaining_duration_minutes,
+          });
+        }
+      }
+    }
+    return ops;
+  }, [factoryCtx?.factory]);
+
+  const currentClock = factoryCtx?.factory?.current_time_minute ?? 0;
 
   return (
     <header className="app-header">
       <BrandLogo onToggleSidebar={onToggleSidebar} isSidebarOpen={isSidebarOpen} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {factoryCtx && (
+          <PlantClockWidget
+            currentTime={currentClock}
+            onOpenAdvance={() => setShowAdvanceModal(true)}
+            disabled={!activeWorkspaceId || !factoryCtx.factory}
+          />
+        )}
         <WorkspaceSelector
           workspaces={workspaces}
           activeWorkspaceId={activeWorkspaceId}
@@ -253,6 +330,18 @@ export function AppHeader({ onToggleSidebar, isSidebarOpen }: AppHeaderProps): R
         <WorkspaceModal
           onClose={() => setShowCreateModal(false)}
           onSubmit={async (name, desc) => { await createWorkspace(name, desc); }}
+        />
+      )}
+
+      {showAdvanceModal && factoryCtx && (
+        <ClockAdvanceModal
+          isOpen={showAdvanceModal}
+          onClose={() => setShowAdvanceModal(false)}
+          currentClock={currentClock}
+          inProgressOps={inProgressOps}
+          onAdvance={async (payload) => {
+            await factoryCtx.advanceClock(payload);
+          }}
         />
       )}
     </header>

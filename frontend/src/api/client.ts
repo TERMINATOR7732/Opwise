@@ -120,6 +120,12 @@ export const api = {
       method: 'PUT',
       body: body ? JSON.stringify(body) : undefined,
     }),
+  patch: <T>(path: string, body?: unknown, options?: RequestInit) =>
+    request<T>(path, {
+      ...options,
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined,
+    }),
   postForm: <T>(path: string, formData: FormData, options?: RequestInit) =>
     request<T>(path, {
       ...options,

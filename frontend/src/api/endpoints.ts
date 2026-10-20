@@ -5,7 +5,11 @@
 
 import { api, downloadFile } from './client';
 import {
+  AdjustRemainingPayload,
+  ClockAdvancePayload,
+  CompleteOperationPayload,
   CreateWorkspaceRequest,
+  ExecutionStatusResponse,
   FactoryConfigPayload,
   FactoryConfigResponse,
   FactoryValidationResponse,
@@ -16,6 +20,7 @@ import {
   OptimizeResponseData,
   ScheduleDetailResponse,
   ScheduleSummaryResponse,
+  StartOperationPayload,
   VerificationReportResponse,
   WorkspaceResponse,
 } from '../types/api';
@@ -239,4 +244,36 @@ export const apiEndpoints = {
   /** Download starter template (format: 'csv' | 'xlsx') */
   downloadTemplate: (format: 'csv' | 'xlsx'): Promise<void> =>
     downloadFile(`/templates/${format}`, `opwise_factory_template.${format === 'csv' ? 'zip' : 'xlsx'}`),
+
+  /** Advance plant clock and reconcile active operations */
+  advanceClock: (workspaceId: string, payload: ClockAdvancePayload): Promise<ExecutionStatusResponse> =>
+    api.post<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/clock/advance`, payload),
+
+  /** Start a planned operation at the current plant clock */
+  startOperation: (
+    workspaceId: string,
+    operationId: string,
+    payload: StartOperationPayload = {}
+  ): Promise<ExecutionStatusResponse> =>
+    api.post<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/operations/${operationId}/start`, payload),
+
+  /** Complete an in-progress operation at the current plant clock */
+  completeOperation: (
+    workspaceId: string,
+    operationId: string,
+    payload: CompleteOperationPayload = {}
+  ): Promise<ExecutionStatusResponse> =>
+    api.post<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/operations/${operationId}/complete`, payload),
+
+  /** Adjust remaining duration for an in-progress operation */
+  adjustRemainingDuration: (
+    workspaceId: string,
+    operationId: string,
+    payload: AdjustRemainingPayload
+  ): Promise<ExecutionStatusResponse> =>
+    api.patch<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/operations/${operationId}/remaining`, payload),
+
+  /** Get shop floor execution dispatching status */
+  getExecutionStatus: (workspaceId: string): Promise<ExecutionStatusResponse> =>
+    api.get<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/status`),
 };

@@ -130,7 +130,17 @@ class DataExchangeError(OpwiseError):
 class LifecycleStateError(DomainError):
     """Raised when an operation's lifecycle status or execution timestamps violate invariants."""
 
-    def __init__(self, message: str, error_code: str = "INVALID_LIFECYCLE_STATE") -> None:
-        super().__init__(message=message, error_code=error_code, status_code=422)
+    def __init__(
+        self,
+        message: str,
+        error_code: str = "INVALID_LIFECYCLE_STATE",
+        status_code: int | None = None,
+    ) -> None:
+        resolved_status = (
+            status_code
+            if status_code is not None
+            else (409 if error_code == "STALE_EXECUTION_STATE" else 422)
+        )
+        super().__init__(message=message, error_code=error_code, status_code=resolved_status)
 
 

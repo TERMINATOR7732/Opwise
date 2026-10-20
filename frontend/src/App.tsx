@@ -1,6 +1,7 @@
 import React from 'react';
 import { RouterProvider, useRouter } from './router/RouterContext';
 import { WorkspaceProvider } from './context/WorkspaceContext';
+import { FactoryProvider } from './context/FactoryContext';
 import { AppShell } from './components/layout/AppShell';
 import { OverviewView } from './views/OverviewView';
 import { FactoryView } from './views/FactoryView';
@@ -36,9 +37,11 @@ export function App(): React.ReactElement {
   return (
     <RouterProvider>
       <WorkspaceProvider>
-        <AppShell>
-          <RouteSwitch />
-        </AppShell>
+        <FactoryProvider>
+          <AppShell>
+            <RouteSwitch />
+          </AppShell>
+        </FactoryProvider>
       </WorkspaceProvider>
     </RouterProvider>
   );

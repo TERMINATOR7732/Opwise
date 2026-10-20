@@ -3,6 +3,7 @@
 Governed by ARCHITECTURE.md, ADR-001, and PROJECT_RULES.md.
 """
 
+import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -10,10 +11,12 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
 from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from opwise.api.error_handlers import (
+    database_error_handler,
     generic_exception_handler,
     http_exception_handler,
     opwise_error_handler,
@@ -87,6 +90,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # Register standardized error handlers
     app.add_exception_handler(OpwiseError, opwise_error_handler)
+    app.add_exception_handler(SQLAlchemyOperationalError, database_error_handler)
+    app.add_exception_handler(sqlite3.OperationalError, database_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(Exception, generic_exception_handler)

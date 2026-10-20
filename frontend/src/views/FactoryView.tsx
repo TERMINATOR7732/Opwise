@@ -12,7 +12,7 @@ import { LoadingState } from '../components/common/LoadingState';
 import { ErrorBanner } from '../components/common/ErrorBanner';
 import { useRouter } from '../router/RouterContext';
 import { useWorkspace } from '../context/WorkspaceContext';
-import { FactoryProvider, useFactory, FactoryContextValue } from '../context/FactoryContext';
+import { FactoryProvider, useFactory, useOptionalFactory, FactoryContextValue } from '../context/FactoryContext';
 import { MachinesTab } from './factory/MachinesTab';
 import { OrdersTab } from './factory/OrdersTab';
 import { FactoryValidationCard } from './factory/FactoryValidationCard';
@@ -63,7 +63,22 @@ function FactoryTabPanels({
     );
   }
   if (tab === 'orders') {
-    return <OrdersTab orders={factory.orders} machines={factory.machines} onAddOrder={ctx.addOrder} onUpdateOrder={ctx.updateOrder} onDeleteOrder={ctx.deleteOrder} />;
+    return (
+      <OrdersTab
+        orders={factory.orders}
+        machines={factory.machines}
+        onAddOrder={ctx.addOrder}
+        onUpdateOrder={ctx.updateOrder}
+        onDeleteOrder={ctx.deleteOrder}
+        onStartOperation={async (opId) => {
+          await ctx.startOperation(opId);
+        }}
+        onCompleteOperation={async (opId) => {
+          await ctx.completeOperation(opId);
+        }}
+        currentTimeMinute={factory.current_time_minute}
+      />
+    );
   }
   return (
     <FactoryValidationCard
@@ -135,6 +150,10 @@ function FactoryInnerView(): React.ReactElement {
 }
 
 export function FactoryView(): React.ReactElement {
+  const existing = useOptionalFactory();
+  if (existing) {
+    return <FactoryInnerView />;
+  }
   return (
     <FactoryProvider>
       <FactoryInnerView />

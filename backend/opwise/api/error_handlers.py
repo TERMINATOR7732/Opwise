@@ -53,6 +53,21 @@ async def http_exception_handler(request: Request, exc: Exception) -> JSONRespon
     return JSONResponse(status_code=exc.status_code, content=envelope.model_dump())
 
 
+async def database_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Handle database contention and locking errors with 409 conflict."""
+    msg = str(exc).lower()
+    if "locked" in msg or "busy" in msg:
+        envelope = ErrorEnvelope(
+            success=False,
+            error=ErrorBody(
+                code="CONCURRENT_EXECUTION_CONFLICT",
+                message="Database is temporarily locked due to concurrent execution. Please retry.",
+            ),
+        )
+        return JSONResponse(status_code=409, content=envelope.model_dump())
+    return await generic_exception_handler(request, exc)
+
+
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch-all handler for unexpected runtime exceptions."""
     envelope = ErrorEnvelope(

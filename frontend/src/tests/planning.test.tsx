@@ -21,6 +21,7 @@ import { ScheduleDetailCard } from '../views/schedules/ScheduleDetailCard';
 
 const mockFactory: FactoryConfigResponse = {
   workspace_id: 'ws-1',
+  current_time_minute: 0,
   machines: [
     { id: 'm-1', external_id: 'M1', name: '5-Axis CNC Mill', created_at: '2026-10-17T10:00:00Z' },
     { id: 'm-2', external_id: 'M2', name: 'Manual Lathe', created_at: '2026-10-17T10:00:00Z' },

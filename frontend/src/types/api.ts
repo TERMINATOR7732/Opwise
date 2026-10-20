@@ -96,6 +96,10 @@ export interface OperationCreate {
   sequence_index: number;
   machine_id: string;
   processing_minutes: number;
+  status?: string;
+  actual_start_minute?: number | null;
+  actual_end_minute?: number | null;
+  remaining_duration_minutes?: number | null;
 }
 
 export interface OperationResponse {
@@ -104,6 +108,10 @@ export interface OperationResponse {
   sequence_index: number;
   machine_id: string;
   processing_minutes: number;
+  status?: string;
+  actual_start_minute?: number | null;
+  actual_end_minute?: number | null;
+  remaining_duration_minutes?: number | null;
 }
 
 export interface OrderCreate {
@@ -129,6 +137,7 @@ export interface FactoryConfigPayload {
   machines: MachineCreate[];
   downtimes: DowntimeCreate[];
   orders: OrderCreate[];
+  current_time_minute?: number;
 }
 
 export interface FactoryConfigResponse {
@@ -136,6 +145,7 @@ export interface FactoryConfigResponse {
   machines: MachineResponse[];
   downtimes: DowntimeResponse[];
   orders: OrderResponse[];
+  current_time_minute: number;
 }
 
 export interface FactoryValidationResponse {
@@ -281,4 +291,65 @@ export interface ImportConfirmResponse {
   status: string;
   message: string;
   factory: FactoryConfigResponse;
+}
+
+export interface ClockAdvancePayload {
+  advance_by_minutes?: number | null;
+  target_time_minute?: number | null;
+  expected_current_time_minute?: number | null;
+  completed_operation_ids?: string[];
+  remaining_duration_overrides?: Record<string, number>;
+}
+
+export interface StartOperationPayload {
+  estimated_remaining_duration_minutes?: number | null;
+  expected_current_time_minute?: number | null;
+}
+
+export interface CompleteOperationPayload {
+  expected_current_time_minute?: number | null;
+}
+
+export interface AdjustRemainingPayload {
+  remaining_duration_minutes: number;
+  expected_current_time_minute?: number | null;
+}
+
+export interface ActiveOperationSummary {
+  operation_id: string;
+  order_id: string;
+  order_code: string;
+  sequence_index: number;
+  machine_id: string;
+  machine_name: string;
+  actual_start_minute: number;
+  elapsed_minutes: number;
+  remaining_duration_minutes: number;
+  projected_end_minute: number;
+  is_overdue: boolean;
+}
+
+export interface ReadyOperationSummary {
+  operation_id: string;
+  order_id: string;
+  order_code: string;
+  sequence_index: number;
+  machine_id: string;
+  machine_name: string;
+  processing_minutes: number;
+}
+
+export interface OccupiedMachineSummary {
+  machine_id: string;
+  machine_name: string;
+  status: 'BUSY' | 'IDLE' | 'DOWNTIME' | string;
+  active_operation_id?: string | null;
+}
+
+export interface ExecutionStatusResponse {
+  workspace_id: string;
+  current_time_minute: number;
+  active_operations: ActiveOperationSummary[];
+  ready_to_start_operations: ReadyOperationSummary[];
+  occupied_machines: OccupiedMachineSummary[];
 }

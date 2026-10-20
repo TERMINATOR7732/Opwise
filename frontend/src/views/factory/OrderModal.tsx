@@ -139,8 +139,17 @@ export function OrderModal({ isOpen, machines, initialOrder, onSave, onClose, ex
   const [due, setDue] = useState(initialOrder ? String(initialOrder.due_minute) : '120');
   const [weight, setWeight] = useState(initialOrder ? String(initialOrder.tardiness_weight) : '1');
   const [ops, setOps] = useState<OperationCreate[]>(() => {
-    if (initialOrder) return initialOrder.operations.map((o) => ({ sequence_index: o.sequence_index, machine_id: o.machine_id, processing_minutes: o.processing_minutes }));
-    return machines.length > 0 ? [{ sequence_index: 1, machine_id: machines[0].id, processing_minutes: 30 }] : [];
+    if (initialOrder)
+      return initialOrder.operations.map((o) => ({
+        sequence_index: o.sequence_index,
+        machine_id: o.machine_id,
+        processing_minutes: o.processing_minutes,
+        status: o.status,
+        actual_start_minute: o.actual_start_minute,
+        actual_end_minute: o.actual_end_minute,
+        remaining_duration_minutes: o.remaining_duration_minutes,
+      }));
+    return machines.length > 0 ? [{ sequence_index: 1, machine_id: machines[0].id, processing_minutes: 30, status: 'PLANNED' }] : [];
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -152,14 +161,24 @@ export function OrderModal({ isOpen, machines, initialOrder, onSave, onClose, ex
       setRel(String(initialOrder.release_minute));
       setDue(String(initialOrder.due_minute));
       setWeight(String(initialOrder.tardiness_weight));
-      setOps(initialOrder.operations.map((o) => ({ sequence_index: o.sequence_index, machine_id: o.machine_id, processing_minutes: o.processing_minutes })));
+      setOps(
+        initialOrder.operations.map((o) => ({
+          sequence_index: o.sequence_index,
+          machine_id: o.machine_id,
+          processing_minutes: o.processing_minutes,
+          status: o.status,
+          actual_start_minute: o.actual_start_minute,
+          actual_end_minute: o.actual_end_minute,
+          remaining_duration_minutes: o.remaining_duration_minutes,
+        }))
+      );
     } else {
       setExtId('');
       setName('');
       setRel('0');
       setDue('120');
       setWeight('1');
-      setOps(machines.length > 0 ? [{ sequence_index: 1, machine_id: machines[0].id, processing_minutes: 30 }] : []);
+      setOps(machines.length > 0 ? [{ sequence_index: 1, machine_id: machines[0].id, processing_minutes: 30, status: 'PLANNED' }] : []);
     }
     setFormError(null);
   }, [initialOrder, machines, isOpen]);
@@ -173,7 +192,15 @@ export function OrderModal({ isOpen, machines, initialOrder, onSave, onClose, ex
     setIsSubmitting(true);
     setFormError(null);
     try {
-      const sanitized = ops.map((op, i) => ({ sequence_index: i + 1, machine_id: op.machine_id, processing_minutes: Math.max(1, op.processing_minutes) }));
+      const sanitized = ops.map((op, i) => ({
+        sequence_index: i + 1,
+        machine_id: op.machine_id,
+        processing_minutes: Math.max(1, op.processing_minutes),
+        status: op.status,
+        actual_start_minute: op.actual_start_minute,
+        actual_end_minute: op.actual_end_minute,
+        remaining_duration_minutes: op.remaining_duration_minutes,
+      }));
       await onSave({ external_id: extId.trim(), name: name.trim(), release_minute: Math.max(0, parseInt(rel, 10) || 0), due_minute: Math.max(0, parseInt(due, 10) || 0), tardiness_weight: Math.max(0, parseInt(weight, 10) || 1), operations: sanitized });
       onClose();
     } catch (submitErr: unknown) {

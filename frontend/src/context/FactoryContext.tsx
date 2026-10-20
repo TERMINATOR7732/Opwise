@@ -7,12 +7,17 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { apiEndpoints } from '../api/endpoints';
 import { ApiClientError } from '../api/client';
 import {
+  AdjustRemainingPayload,
+  ClockAdvancePayload,
+  CompleteOperationPayload,
   DowntimeCreate,
+  ExecutionStatusResponse,
   FactoryConfigPayload,
   FactoryConfigResponse,
   FactoryValidationResponse,
   MachineCreate,
   OrderCreate,
+  StartOperationPayload,
 } from '../types/api';
 import { useWorkspace } from './WorkspaceContext';
 
@@ -23,6 +28,8 @@ export interface FactoryContextValue {
   errorCode: string | null;
   validationResult: FactoryValidationResponse | null;
   isValidating: boolean;
+  executionStatus: ExecutionStatusResponse | null;
+  isExecuting: boolean;
   loadFactory: () => Promise<void>;
   validateCurrentFactory: () => Promise<FactoryValidationResponse | null>;
   addMachine: (m: MachineCreate) => Promise<void>;
@@ -33,6 +40,11 @@ export interface FactoryContextValue {
   addOrder: (o: OrderCreate) => Promise<void>;
   updateOrder: (id: string, o: OrderCreate) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
+  advanceClock: (payload: ClockAdvancePayload) => Promise<ExecutionStatusResponse>;
+  startOperation: (operationId: string, payload?: StartOperationPayload) => Promise<ExecutionStatusResponse>;
+  completeOperation: (operationId: string, payload?: CompleteOperationPayload) => Promise<ExecutionStatusResponse>;
+  adjustRemaining: (operationId: string, payload: AdjustRemainingPayload) => Promise<ExecutionStatusResponse>;
+  loadExecutionStatus: () => Promise<ExecutionStatusResponse | null>;
 }
 
 const FactoryContext = createContext<FactoryContextValue | null>(null);
@@ -84,12 +96,16 @@ function buildDowntimesPayload(
   }));
 }
 
+interface OrderWithId extends OrderCreate {
+  id: string;
+}
+
 function buildOrdersPayload(
   current: FactoryConfigResponse,
   addOrUpdate?: { id?: string; data: OrderCreate },
   deleteId?: string
 ): OrderCreate[] {
-  let list = current.orders.map((o) => ({
+  let list: OrderWithId[] = current.orders.map((o) => ({
     id: o.id,
     external_id: o.external_id,
     name: o.name,
@@ -100,13 +116,35 @@ function buildOrdersPayload(
       sequence_index: op.sequence_index,
       machine_id: op.machine_id,
       processing_minutes: op.processing_minutes,
+      status: op.status,
+      actual_start_minute: op.actual_start_minute,
+      actual_end_minute: op.actual_end_minute,
+      remaining_duration_minutes: op.remaining_duration_minutes,
     })),
   }));
   if (deleteId) {
     list = list.filter((o) => o.id !== deleteId && o.external_id !== deleteId);
   } else if (addOrUpdate) {
     list = addOrUpdate.id
-      ? list.map((o) => (o.id === addOrUpdate.id ? { id: o.id, ...addOrUpdate.data } : o))
+      ? list.map((o) => {
+          if (o.id !== addOrUpdate.id) return o;
+          const mergedOps = addOrUpdate.data.operations.map((newOp, idx) => {
+            const existingOp = o.operations[idx];
+            return {
+              ...newOp,
+              status: newOp.status ?? existingOp?.status ?? 'PLANNED',
+              actual_start_minute: newOp.actual_start_minute ?? existingOp?.actual_start_minute ?? null,
+              actual_end_minute: newOp.actual_end_minute ?? existingOp?.actual_end_minute ?? null,
+              remaining_duration_minutes:
+                newOp.remaining_duration_minutes ?? existingOp?.remaining_duration_minutes ?? null,
+            };
+          });
+          return {
+            ...o,
+            ...addOrUpdate.data,
+            operations: mergedOps,
+          };
+        })
       : [...list, { id: '', ...addOrUpdate.data }];
   }
   return list.map((o) => ({
@@ -161,42 +199,82 @@ function useFactoryMutations(
 ) {
   const addMachine = useCallback(async (m: MachineCreate) => {
     if (!factory) return;
-    await saveConfig({ machines: buildMachinesPayload(factory, { data: m }), downtimes: buildDowntimesPayload(factory), orders: buildOrdersPayload(factory) });
+    await saveConfig({
+      current_time_minute: factory.current_time_minute,
+      machines: buildMachinesPayload(factory, { data: m }),
+      downtimes: buildDowntimesPayload(factory),
+      orders: buildOrdersPayload(factory),
+    });
   }, [factory, saveConfig]);
 
   const updateMachine = useCallback(async (id: string, m: MachineCreate) => {
     if (!factory) return;
-    await saveConfig({ machines: buildMachinesPayload(factory, { id, data: m }), downtimes: buildDowntimesPayload(factory), orders: buildOrdersPayload(factory) });
+    await saveConfig({
+      current_time_minute: factory.current_time_minute,
+      machines: buildMachinesPayload(factory, { id, data: m }),
+      downtimes: buildDowntimesPayload(factory),
+      orders: buildOrdersPayload(factory),
+    });
   }, [factory, saveConfig]);
 
   const deleteMachine = useCallback(async (id: string) => {
     if (!factory) return;
-    await saveConfig({ machines: buildMachinesPayload(factory, undefined, id), downtimes: buildDowntimesPayload(factory, undefined, undefined, id), orders: buildOrdersPayload(factory) });
+    await saveConfig({
+      current_time_minute: factory.current_time_minute,
+      machines: buildMachinesPayload(factory, undefined, id),
+      downtimes: buildDowntimesPayload(factory, undefined, undefined, id),
+      orders: buildOrdersPayload(factory),
+    });
   }, [factory, saveConfig]);
 
   const addDowntime = useCallback(async (dt: DowntimeCreate) => {
     if (!factory) return;
-    await saveConfig({ machines: buildMachinesPayload(factory), downtimes: buildDowntimesPayload(factory, dt), orders: buildOrdersPayload(factory) });
+    await saveConfig({
+      current_time_minute: factory.current_time_minute,
+      machines: buildMachinesPayload(factory),
+      downtimes: buildDowntimesPayload(factory, dt),
+      orders: buildOrdersPayload(factory),
+    });
   }, [factory, saveConfig]);
 
   const deleteDowntime = useCallback(async (id: string) => {
     if (!factory) return;
-    await saveConfig({ machines: buildMachinesPayload(factory), downtimes: buildDowntimesPayload(factory, undefined, id), orders: buildOrdersPayload(factory) });
+    await saveConfig({
+      current_time_minute: factory.current_time_minute,
+      machines: buildMachinesPayload(factory),
+      downtimes: buildDowntimesPayload(factory, undefined, id),
+      orders: buildOrdersPayload(factory),
+    });
   }, [factory, saveConfig]);
 
   const addOrder = useCallback(async (o: OrderCreate) => {
     if (!factory) return;
-    await saveConfig({ machines: buildMachinesPayload(factory), downtimes: buildDowntimesPayload(factory), orders: buildOrdersPayload(factory, { data: o }) });
+    await saveConfig({
+      current_time_minute: factory.current_time_minute,
+      machines: buildMachinesPayload(factory),
+      downtimes: buildDowntimesPayload(factory),
+      orders: buildOrdersPayload(factory, { data: o }),
+    });
   }, [factory, saveConfig]);
 
   const updateOrder = useCallback(async (id: string, o: OrderCreate) => {
     if (!factory) return;
-    await saveConfig({ machines: buildMachinesPayload(factory), downtimes: buildDowntimesPayload(factory), orders: buildOrdersPayload(factory, { id, data: o }) });
+    await saveConfig({
+      current_time_minute: factory.current_time_minute,
+      machines: buildMachinesPayload(factory),
+      downtimes: buildDowntimesPayload(factory),
+      orders: buildOrdersPayload(factory, { id, data: o }),
+    });
   }, [factory, saveConfig]);
 
   const deleteOrder = useCallback(async (id: string) => {
     if (!factory) return;
-    await saveConfig({ machines: buildMachinesPayload(factory), downtimes: buildDowntimesPayload(factory), orders: buildOrdersPayload(factory, undefined, id) });
+    await saveConfig({
+      current_time_minute: factory.current_time_minute,
+      machines: buildMachinesPayload(factory),
+      downtimes: buildDowntimesPayload(factory),
+      orders: buildOrdersPayload(factory, undefined, id),
+    });
   }, [factory, saveConfig]);
 
   return { addMachine, updateMachine, deleteMachine, addDowntime, deleteDowntime, addOrder, updateOrder, deleteOrder };
@@ -208,12 +286,15 @@ export function FactoryProvider({ children }: { children: React.ReactNode }): Re
   const mutations = useFactoryMutations(state.factory, state.saveConfig);
   const [validationResult, setValidationResult] = useState<FactoryValidationResponse | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [executionStatus, setExecutionStatus] = useState<ExecutionStatusResponse | null>(null);
+  const [isExecuting, setIsExecuting] = useState(false);
 
   const validateCurrentFactory = useCallback(async (): Promise<FactoryValidationResponse | null> => {
     if (!activeWorkspaceId || !state.factory) return null;
     setIsValidating(true);
     try {
       const payload: FactoryConfigPayload = {
+        current_time_minute: state.factory.current_time_minute,
         machines: buildMachinesPayload(state.factory),
         downtimes: buildDowntimesPayload(state.factory),
         orders: buildOrdersPayload(state.factory),
@@ -228,17 +309,115 @@ export function FactoryProvider({ children }: { children: React.ReactNode }): Re
     }
   }, [activeWorkspaceId, state.factory]);
 
-  const value = useMemo(() => ({
-    factory: state.factory,
-    status: state.status,
-    error: state.error,
-    errorCode: state.errorCode,
-    validationResult,
-    isValidating,
-    loadFactory: state.loadFactory,
-    validateCurrentFactory,
-    ...mutations,
-  }), [state, mutations, validationResult, isValidating, validateCurrentFactory]);
+  const advanceClock = useCallback(
+    async (payload: ClockAdvancePayload): Promise<ExecutionStatusResponse> => {
+      if (!activeWorkspaceId) throw new Error('No active workspace selected');
+      setIsExecuting(true);
+      try {
+        const res = await apiEndpoints.advanceClock(activeWorkspaceId, payload);
+        setExecutionStatus(res);
+        await state.loadFactory();
+        return res;
+      } finally {
+        setIsExecuting(false);
+      }
+    },
+    [activeWorkspaceId, state]
+  );
+
+  const startOperation = useCallback(
+    async (operationId: string, payload: StartOperationPayload = {}): Promise<ExecutionStatusResponse> => {
+      if (!activeWorkspaceId) throw new Error('No active workspace selected');
+      setIsExecuting(true);
+      try {
+        const res = await apiEndpoints.startOperation(activeWorkspaceId, operationId, payload);
+        setExecutionStatus(res);
+        await state.loadFactory();
+        return res;
+      } finally {
+        setIsExecuting(false);
+      }
+    },
+    [activeWorkspaceId, state]
+  );
+
+  const completeOperation = useCallback(
+    async (operationId: string, payload: CompleteOperationPayload = {}): Promise<ExecutionStatusResponse> => {
+      if (!activeWorkspaceId) throw new Error('No active workspace selected');
+      setIsExecuting(true);
+      try {
+        const res = await apiEndpoints.completeOperation(activeWorkspaceId, operationId, payload);
+        setExecutionStatus(res);
+        await state.loadFactory();
+        return res;
+      } finally {
+        setIsExecuting(false);
+      }
+    },
+    [activeWorkspaceId, state]
+  );
+
+  const adjustRemaining = useCallback(
+    async (operationId: string, payload: AdjustRemainingPayload): Promise<ExecutionStatusResponse> => {
+      if (!activeWorkspaceId) throw new Error('No active workspace selected');
+      setIsExecuting(true);
+      try {
+        const res = await apiEndpoints.adjustRemainingDuration(activeWorkspaceId, operationId, payload);
+        setExecutionStatus(res);
+        await state.loadFactory();
+        return res;
+      } finally {
+        setIsExecuting(false);
+      }
+    },
+    [activeWorkspaceId, state]
+  );
+
+  const loadExecutionStatus = useCallback(async (): Promise<ExecutionStatusResponse | null> => {
+    if (!activeWorkspaceId) return null;
+    try {
+      const res = await apiEndpoints.getExecutionStatus(activeWorkspaceId);
+      setExecutionStatus(res);
+      return res;
+    } catch {
+      return null;
+    }
+  }, [activeWorkspaceId]);
+
+  const value = useMemo(
+    () => ({
+      factory: state.factory,
+      status: state.status,
+      error: state.error,
+      errorCode: state.errorCode,
+      validationResult,
+      isValidating,
+      executionStatus,
+      isExecuting,
+      loadFactory: state.loadFactory,
+      validateCurrentFactory,
+      advanceClock,
+      startOperation,
+      completeOperation,
+      adjustRemaining,
+      loadExecutionStatus,
+      ...mutations,
+    }),
+    [
+      state,
+      mutations,
+      validationResult,
+      isValidating,
+      executionStatus,
+      isExecuting,
+      validateCurrentFactory,
+      advanceClock,
+      startOperation,
+      completeOperation,
+      adjustRemaining,
+      loadExecutionStatus,
+    ]
+  );
 
   return <FactoryContext.Provider value={value}>{children}</FactoryContext.Provider>;
 }
@@ -247,4 +426,8 @@ export function useFactory(): FactoryContextValue {
   const context = useContext(FactoryContext);
   if (!context) throw new Error('useFactory must be used within a FactoryProvider');
   return context;
+}
+
+export function useOptionalFactory(): FactoryContextValue | null {
+  return useContext(FactoryContext);
 }
