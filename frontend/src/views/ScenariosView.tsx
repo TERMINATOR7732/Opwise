@@ -5,7 +5,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
 import { LoadingState } from '../components/common/LoadingState';
@@ -163,7 +162,6 @@ export function ScenariosView(): React.ReactElement {
         <PageHeader
           title="Scenario Branching & Disruption Lab"
           description="Model machine breakdowns, urgent rush orders, and delivery delays without mutating baseline solutions."
-          badge={<Badge variant="neutral">Milestone 10 Implementation</Badge>}
         />
         <EmptyState
           title="No Workspace Selected"
@@ -182,7 +180,6 @@ export function ScenariosView(): React.ReactElement {
       <PageHeader
         title="Scenario Branching & Disruption Lab"
         description="Model machine breakdowns, urgent rush orders, and delivery delays without mutating baseline solutions."
-        badge={<Badge variant="optimal">MILITARY SPEC SOLVER RECOVERY</Badge>}
         actions={
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <Button

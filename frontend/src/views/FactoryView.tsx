@@ -6,7 +6,6 @@
 import React, { useState } from 'react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
-import { Badge } from '../components/common/Badge';
 import { EmptyState } from '../components/common/EmptyState';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorBanner } from '../components/common/ErrorBanner';
@@ -113,7 +112,6 @@ function FactoryInnerView(): React.ReactElement {
       <PageHeader
         title="Factory & Shop Floor Management"
         description={`Workspace: ${activeWorkspace.name} — Real-time persistence backed by local SQLite WAL and Google OR-Tools CP-SAT domain model.`}
-        badge={<Badge variant="optimal">Milestone 09A Active</Badge>}
         actions={
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <Button variant="secondary" size="sm" onClick={() => setIsImportModalOpen(true)}>

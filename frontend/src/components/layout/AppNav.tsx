@@ -1,7 +1,6 @@
 import React from 'react';
 import { useRouter } from '../../router/RouterContext';
 import { APP_ROUTES, AppRoute } from '../../router/types';
-import { Badge } from '../common/Badge';
 
 export interface AppNavProps {
   onNavClick?: () => void;
@@ -36,11 +35,6 @@ export function AppNav({ onNavClick, className = '' }: AppNavProps): React.React
                 title={meta.description}
               >
                 <span>{meta.label}</span>
-                {meta.badge && (
-                  <Badge variant={isActive ? 'optimal' : 'neutral'} className="font-mono">
-                    {meta.badge}
-                  </Badge>
-                )}
               </a>
             </li>
           );

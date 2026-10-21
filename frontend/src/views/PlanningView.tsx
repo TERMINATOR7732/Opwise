@@ -5,7 +5,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
 import { LoadingState } from '../components/common/LoadingState';
@@ -146,7 +145,6 @@ export function PlanningView(): React.ReactElement {
       <PageHeader
         title="Optimization Planning Engine"
         description={`Workspace: ${activeWorkspace.name} — CP-SAT mathematical optimization and clean-room independent schedule verification.`}
-        badge={<Badge variant="optimal">Milestone 09B Active</Badge>}
         actions={
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <Button variant="secondary" size="sm" onClick={state.loadData} disabled={state.isLoading || state.isSolving}>Refresh State</Button>

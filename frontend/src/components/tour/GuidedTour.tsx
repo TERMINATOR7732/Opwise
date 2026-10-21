@@ -57,28 +57,36 @@ export function GuidedTour(): React.ReactElement | null {
       return;
     }
 
-    const el = document.querySelector(currentStep.targetSelector);
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      // Scroll into view if out of viewport
-      if (
-        rect.top < 60 ||
-        rect.bottom > window.innerHeight - 20 ||
-        rect.left < 0 ||
-        rect.right > window.innerWidth
-      ) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
+    try {
+      const el = document.querySelector(currentStep.targetSelector);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        // Check for positive dimensions
+        if (rect.width > 0 && rect.height > 0) {
+          // Scroll into view if out of viewport
+          if (
+            rect.top < 60 ||
+            rect.bottom > window.innerHeight - 20 ||
+            rect.left < 0 ||
+            rect.right > window.innerWidth
+          ) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
 
-      setTargetRect({
-        top: Math.max(0, rect.top),
-        left: Math.max(0, rect.left),
-        width: rect.width,
-        height: rect.height,
-      });
-    } else {
-      setTargetRect(null);
+          setTargetRect({
+            top: Math.max(0, rect.top),
+            left: Math.max(0, rect.left),
+            width: rect.width,
+            height: rect.height,
+          });
+          return;
+        }
+      }
+    } catch {
+      // Graceful fallback if querySelector or getBoundingClientRect fails
     }
+
+    setTargetRect(null);
   }, [isTourOpen, currentStep.targetSelector]);
 
   // Track target on mount, step change, resize, and scroll
@@ -251,10 +259,12 @@ export function GuidedTour(): React.ReactElement | null {
             type="button"
             className="btn btn-secondary btn-sm"
             onClick={closeTour}
-            aria-label="Close Tour"
-            style={{ padding: '0.15rem 0.5rem', fontSize: 'var(--font-size-small)' }}
+            aria-label="Exit Tour"
+            title="Exit Tour"
+            style={{ padding: '0.2rem 0.6rem', fontSize: 'var(--font-size-small)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
           >
-            ✕
+            <span aria-hidden="true">✕</span>
+            <span>Exit Tour</span>
           </button>
         </div>
 

@@ -21,7 +21,7 @@ export const TOUR_STEPS: TourStep[] = [
     stepNumber: 1,
     title: 'Welcome to Opwise',
     description:
-      'Opwise is a local-first production planning and operations intelligence workbench for discrete manufacturing. Configure resources, optimize production schedules with Google OR-Tools CP-SAT, and evaluate disruption recovery in real time.',
+      'Opwise solves complex factory scheduling problems. In discrete manufacturing, multiple custom orders compete for shared machines with sequence rules and delivery deadlines. Opwise uses Google OR-Tools CP-SAT constraint programming to compute optimal, conflict-free production schedules in seconds.',
     route: 'overview',
     targetSelector: '[data-tour="overview-welcome"]',
     placement: 'bottom',
@@ -29,9 +29,9 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'factory',
     stepNumber: 2,
-    title: 'Factory Configuration & Routings',
+    title: 'Factory Resources & Routings',
     description:
-      'Model physical manufacturing capacity: machine workstations, planned maintenance downtime intervals, and multi-step production orders with deterministic processing durations, precedence constraints, and release/due dates.',
+      'Configure your physical shop floor: define machine workstations, scheduled maintenance downtime, and production orders with operation sequences, processing times, and customer delivery dates.',
     route: 'factory',
     targetSelector: '[data-tour="factory-tabs"]',
     placement: 'bottom',
@@ -41,7 +41,7 @@ export const TOUR_STEPS: TourStep[] = [
     stepNumber: 3,
     title: 'CP-SAT Discrete Optimization',
     description:
-      'Translate shop-floor resources and job sequences into exact constraint programming models. Select optimization objectives (Makespan, Total Weighted Tardiness, or Lexicographic multi-objective) and configure solver time limits.',
+      'Turn factory capacity and constraints into exact mathematical models. Choose an optimization goal—such as minimizing total completion time (Makespan) or avoiding customer delays (Weighted Tardiness)—and solve with exact constraint programming.',
     route: 'planning',
     targetSelector: '[data-tour="planning-controls"]',
     placement: 'bottom',
@@ -49,9 +49,9 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'schedules',
     stepNumber: 4,
-    title: 'Schedule Timeline & Interactive Gantt',
+    title: 'Interactive Gantt Schedule',
     description:
-      'Inspect the generated schedule canvas: operation allocations across machine swimlanes, sequence precedence, downtime collision avoidance, makespan, tardiness penalties, and automated bottleneck diagnostics.',
+      'Inspect the generated timeline canvas: view operation allocations across machine swimlanes, verify sequence ordering, ensure downtime windows are avoided, and identify production bottlenecks.',
     route: 'schedules',
     targetSelector: '[data-tour="gantt-chart"]',
     placement: 'bottom',
@@ -61,7 +61,7 @@ export const TOUR_STEPS: TourStep[] = [
     stepNumber: 5,
     title: 'Shop-Floor Execution Simulation',
     description:
-      'Simulate actual shop-floor execution using the discrete Plant Clock (t₀). Start operations when machines are available, advance operational time, adjust remaining work, and reconcile overdue operations with Policy B safety gates.',
+      'Simulate live operations against the plan. Advance the plant clock, start jobs as machines become available, adjust remaining durations, and automatically reconcile schedule deviations.',
     route: 'factory',
     targetSelector: '[data-tour="plant-clock"]',
     placement: 'bottom',
@@ -71,7 +71,7 @@ export const TOUR_STEPS: TourStep[] = [
     stepNumber: 6,
     title: 'Disruption Lab & Recovery Scenarios',
     description:
-      'Simulate unexpected manufacturing disruptions—such as machine breakdowns or urgent rush orders. Re-optimize the schedule and compare dual-Gantt diffs side by side against the baseline to evaluate recovery feasibility.',
+      'Test how your schedule handles real-world surprises—like unexpected machine breakdowns or high-priority rush orders. Compare baseline schedules against recovery plans side by side.',
     route: 'scenarios',
     targetSelector: '[data-tour="scenarios-view"]',
     placement: 'bottom',
@@ -79,9 +79,9 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'reports',
     stepNumber: 7,
-    title: 'Analytical Reports & Clean-Room Verification',
+    title: 'Verification & Performance Analytics',
     description:
-      'Audit production plans against 8 independent clean-room mathematical invariants (zero overlapping operations, downtime exclusion, precedence satisfaction). Review machine utilization, order delays, and delivery slack.',
+      'Every schedule is audited against 8 mathematical invariants to guarantee zero machine overlap or deadline violations. Review utilization rates, order delays, and export clean reports.',
     route: 'reports',
     targetSelector: '[data-tour="reports-summary"]',
     placement: 'bottom',
@@ -91,7 +91,7 @@ export const TOUR_STEPS: TourStep[] = [
     stepNumber: 8,
     title: "You're Ready to Plan",
     description:
-      "You have explored the end-to-end Opwise planning lifecycle! You can now explore the pre-solved demo scenarios or configure your own factory. You can restart this tour at any time from the 'Guided Tour' button in the header.",
+      "You have seen the full discrete manufacturing workflow! Explore the pre-loaded demo workspace or configure your own factory floor. You can restart this tour anytime using the Guided Tour button in the header.",
     route: 'overview',
     targetSelector: '[data-tour="overview-welcome"]',
     placement: 'center',

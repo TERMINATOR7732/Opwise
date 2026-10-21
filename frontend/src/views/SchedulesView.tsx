@@ -124,7 +124,6 @@ export function SchedulesView(): React.ReactElement {
       <PageHeader
         title="Production Schedules & Historical Telemetry"
         description={`Workspace: ${activeWorkspace.name} — Persisted schedule snapshots, deterministic metrics, and clean-room verification.`}
-        badge={<Badge variant="optimal">Milestone 09B Active</Badge>}
         actions={
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <Button variant="secondary" size="sm" onClick={loadSchedules} disabled={isLoading}>Refresh Schedules</Button>

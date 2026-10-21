@@ -3,11 +3,9 @@
  * Governed by PROJECT_RULES.md (Zero external dependencies).
  */
 
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from '../router/RouterContext';
 import { TOUR_STEPS, TourStep } from '../components/tour/tourSteps';
-
-const TOUR_STORAGE_KEY = 'opwise_tour_dismissed';
 
 export interface TourContextValue {
   isTourOpen: boolean;
@@ -41,33 +39,28 @@ export const defaultTourContext: TourContextValue = {
 
 export const TourContext = createContext<TourContextValue | null>(null);
 
-function getInitialDismissedState(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    return localStorage.getItem(TOUR_STORAGE_KEY) === 'true';
-  } catch {
-    return false;
-  }
+export interface TourProviderProps {
+  children: React.ReactNode;
+  initialOpen?: boolean;
 }
 
-function persistDismissedState(dismissed: boolean): void {
-  if (typeof window === 'undefined') return;
-  try {
-    if (dismissed) {
-      localStorage.setItem(TOUR_STORAGE_KEY, 'true');
-    } else {
-      localStorage.removeItem(TOUR_STORAGE_KEY);
-    }
-  } catch {
-    // Graceful fallback when storage is restricted
-  }
-}
-
-export function TourProvider({ children }: { children: React.ReactNode }): React.ReactElement {
+export function TourProvider({ children, initialOpen = true }: TourProviderProps): React.ReactElement {
   const { navigate } = useRouter();
-  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState<boolean>(initialOpen);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [hasDismissedTour, setHasDismissedTour] = useState<boolean>(getInitialDismissedState);
+  const [hasDismissedTour, setHasDismissedTour] = useState<boolean>(false);
+  const hasAutoLaunchedRef = useRef(false);
+
+  // Clear legacy localStorage tour flag if present to ensure fresh visits always see tour
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('opwise_tour_dismissed');
+      } catch {
+        // Safe ignore
+      }
+    }
+  }, []);
 
   const currentStep = TOUR_STEPS[currentStepIndex] || TOUR_STEPS[0];
   const totalSteps = TOUR_STEPS.length;
@@ -75,13 +68,13 @@ export function TourProvider({ children }: { children: React.ReactNode }): React
   const startTour = useCallback(() => {
     setCurrentStepIndex(0);
     setIsTourOpen(true);
+    setHasDismissedTour(false);
     navigate(TOUR_STEPS[0].route);
   }, [navigate]);
 
   const closeTour = useCallback(() => {
     setIsTourOpen(false);
     setHasDismissedTour(true);
-    persistDismissedState(true);
   }, []);
 
   const skipTour = useCallback(() => {
@@ -114,8 +107,15 @@ export function TourProvider({ children }: { children: React.ReactNode }): React
     setIsTourOpen(false);
     setCurrentStepIndex(0);
     setHasDismissedTour(false);
-    persistDismissedState(false);
   }, []);
+
+  // Ensure initial navigation to overview if auto-launched on initial mount
+  useEffect(() => {
+    if (initialOpen && !hasAutoLaunchedRef.current && isTourOpen && currentStepIndex === 0) {
+      hasAutoLaunchedRef.current = true;
+      navigate(TOUR_STEPS[0].route);
+    }
+  }, [initialOpen, isTourOpen, currentStepIndex, navigate]);
 
   const value = useMemo(
     () => ({

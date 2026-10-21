@@ -65,7 +65,7 @@ function WorkflowSteps({ onNavigate }: { onNavigate: (route: AppRoute) => void }
             Define machine capacities, planned downtime windows, and multi-operation job sequences with deterministic durations and release times.
           </p>
           <Button variant="secondary" size="sm" onClick={() => onNavigate('factory')}>
-            View Factory (M09) →
+            View Factory →
           </Button>
         </Card>
         <Card title="2. CP-SAT Optimization" subtitle="Pure Makespan, Weighted Tardiness, or Lexicographic">
@@ -73,7 +73,7 @@ function WorkflowSteps({ onNavigate }: { onNavigate: (route: AppRoute) => void }
             Run discrete constraint optimization via Google OR-Tools CP-SAT. Bounded solver envelopes with mathematical optimality gap reporting.
           </p>
           <Button variant="secondary" size="sm" onClick={() => onNavigate('planning')}>
-            View Planning (M09) →
+            View Planning →
           </Button>
         </Card>
         <Card title="3. Verification & Gantt" subtitle="Clean-room invariant auditing and interactive schedule">
@@ -81,44 +81,11 @@ function WorkflowSteps({ onNavigate }: { onNavigate: (route: AppRoute) => void }
             Validate every schedule against all 8 operational invariants. Inspect machine allocations, downtime exclusions, and bottlenecks.
           </p>
           <Button variant="secondary" size="sm" onClick={() => onNavigate('schedules')}>
-            View Schedules (M09) →
+            View Schedules →
           </Button>
         </Card>
       </div>
     </div>
-  );
-}
-
-function ArchitectureStatusCard(): React.ReactElement {
-  return (
-    <Card title="System Architectural Status" subtitle="Verified Milestones & Capability Roadmap">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: 'var(--font-size-body)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Milestone 01–07: Core CP-SAT Solver, Verifier, Metrics & SQLite REST API</span>
-          <Badge variant="optimal">VERIFIED (100% PASS)</Badge>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Milestone 08–09: Factory Management Grid & Interactive Gantt Canvas</span>
-          <Badge variant="optimal">VERIFIED (100% PASS)</Badge>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Milestone 10: Disruption Lab & Scenario Comparator</span>
-          <Badge variant="optimal">VERIFIED (100% PASS)</Badge>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Milestone 11: Production Reports, KPI Recalculation & Data Export</span>
-          <Badge variant="optimal">VERIFIED (100% PASS)</Badge>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Milestone 12: Safe Two-Phase CSV/XLSX Import Engine & Validation</span>
-          <Badge variant="optimal">VERIFIED (100% PASS)</Badge>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Milestone 13: Standalone Client-Side Demo Mode & In-Browser Verifier</span>
-          <Badge variant="optimal">ACTIVE (CURRENT)</Badge>
-        </div>
-      </div>
-    </Card>
   );
 }
 
@@ -288,7 +255,6 @@ function OverviewWorkspaceContent({
       </div>
       <DemoScenariosCard />
       <WorkflowSteps onNavigate={onNavigate} />
-      <ArchitectureStatusCard />
     </div>
   );
 }
@@ -304,7 +270,6 @@ export function OverviewView(): React.ReactElement {
       <PageHeader
         title="Production Planning Overview"
         description="Deterministic discrete manufacturing optimization powered by Google OR-Tools CP-SAT and verified by clean-room invariant auditing."
-        badge={<Badge variant="optimal">Milestone 13 Active</Badge>}
         actions={
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <Button variant="primary" size="sm" onClick={startTour} aria-label="Start Guided Product Tour">

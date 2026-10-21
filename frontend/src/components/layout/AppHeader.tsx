@@ -214,7 +214,6 @@ function BrandLogo({ onToggleSidebar, isSidebarOpen }: AppHeaderProps): React.Re
         </svg>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
           <span style={{ fontSize: '1.125rem', fontWeight: 800, letterSpacing: '0.04em', color: 'var(--text-primary)' }}>OPWISE</span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }} className="font-mono">v0.1.0</span>
         </div>
       </div>
     </div>

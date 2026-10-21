@@ -82,7 +82,7 @@ describe('GuidedTour Component Rendering', () => {
     const TestConsumer = () => <GuidedTour />;
     const markup = renderToStaticMarkup(
       <RouterProvider>
-        <TourProvider>
+        <TourProvider initialOpen={false}>
           <TestConsumer />
         </TourProvider>
       </RouterProvider>
@@ -121,6 +121,7 @@ describe('GuidedTour Component Rendering', () => {
     expect(markup).toContain('Welcome to Opwise');
     expect(markup).toContain('Next Step →');
     expect(markup).toContain('Skip Tour');
+    expect(markup).toContain('Exit Tour');
   });
 
   it('renders Finish Tour button on step 8 and Back button on intermediate steps', () => {
@@ -189,26 +190,34 @@ describe('TourContext Initialization & Persistence', () => {
     vi.unstubAllGlobals();
   });
 
-  it('initializes with hasDismissedTour false when localStorage is empty', () => {
+  it('automatically launches tour on fresh demo visit by default', () => {
     let contextValue: TourContextValue = defaultTourContext;
     const Reader = () => {
       contextValue = useTour();
-      return <div>State: {contextValue.hasDismissedTour ? 'DISMISSED' : 'ACTIVE'}</div>;
+      return <div>Tour: {contextValue.isTourOpen ? 'OPEN' : 'CLOSED'}</div>;
     };
 
     const markup = renderToStaticMarkup(
       <RouterProvider>
         <TourProvider>
           <Reader />
+          <GuidedTour />
         </TourProvider>
       </RouterProvider>
     );
 
-    expect(markup).toContain('State: ACTIVE');
+    expect(contextValue.isTourOpen).toBe(true);
     expect(contextValue.hasDismissedTour).toBe(false);
+    expect(contextValue.currentStepIndex).toBe(0);
+    expect(markup).toContain('Tour: OPEN');
+    expect(markup).toContain('tour-popover');
+    expect(markup).toContain('Step 1 of 8');
+    expect(markup).toContain('Exit Tour');
+    expect(markup).toContain('Skip Tour');
   });
 
-  it('initializes with hasDismissedTour true when localStorage has dismissed key', () => {
+  it('maintains dismissal strictly in memory without persisting to localStorage across visits', () => {
+    // Even if legacy localStorage had a flag, it should be cleared/ignored
     store['opwise_tour_dismissed'] = 'true';
 
     let contextValue: TourContextValue = defaultTourContext;
@@ -225,8 +234,62 @@ describe('TourContext Initialization & Persistence', () => {
       </RouterProvider>
     );
 
-    expect(markup).toContain('State: DISMISSED');
-    expect(contextValue.hasDismissedTour).toBe(true);
+    // Fresh visit must not be silenced by localStorage
+    expect(markup).toContain('State: ACTIVE');
+    expect(contextValue.hasDismissedTour).toBe(false);
+    expect(contextValue.isTourOpen).toBe(true);
+  });
+
+  it('respects initialOpen={false} when explicitly configured', () => {
+    let contextValue: TourContextValue = defaultTourContext;
+    const Reader = () => {
+      contextValue = useTour();
+      return <div>Tour: {contextValue.isTourOpen ? 'OPEN' : 'CLOSED'}</div>;
+    };
+
+    const markup = renderToStaticMarkup(
+      <RouterProvider>
+        <TourProvider initialOpen={false}>
+          <Reader />
+          <GuidedTour />
+        </TourProvider>
+      </RouterProvider>
+    );
+
+    expect(contextValue.isTourOpen).toBe(false);
+    expect(contextValue.hasDismissedTour).toBe(false);
+    expect(markup).toContain('Tour: CLOSED');
+    expect(markup).not.toContain('tour-popover');
+  });
+
+  it('provides callable controls for dismiss, skip, next, prev, and manual start without localStorage mutation', () => {
+    let captured: TourContextValue = defaultTourContext;
+    const Capture = () => {
+      captured = useTour();
+      return null;
+    };
+
+    renderToStaticMarkup(
+      <RouterProvider>
+        <TourProvider>
+          <Capture />
+        </TourProvider>
+      </RouterProvider>
+    );
+
+    expect(typeof captured.startTour).toBe('function');
+    expect(typeof captured.closeTour).toBe('function');
+    expect(typeof captured.skipTour).toBe('function');
+    expect(typeof captured.finishTour).toBe('function');
+    expect(typeof captured.nextStep).toBe('function');
+    expect(typeof captured.prevStep).toBe('function');
+    expect(typeof captured.resetTourState).toBe('function');
+
+    // Executing closeTour or skipTour does NOT write to localStorage
+    captured.closeTour();
+    expect(store['opwise_tour_dismissed']).toBeUndefined();
+    captured.skipTour();
+    expect(store['opwise_tour_dismissed']).toBeUndefined();
   });
 });
 

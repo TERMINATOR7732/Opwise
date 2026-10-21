@@ -97,7 +97,7 @@ describe('UI Primitives and Layout Components', () => {
     expect(markup).toContain('PROVEN');
   });
 
-  it('renders AppNav with aria-current="page" on active route and honest coming soon badges', () => {
+  it('renders AppNav with aria-current="page" on active route and clean navigation labels', () => {
     const markup = renderToStaticMarkup(
       <RouterProvider initialHash="#overview">
         <AppNav />
@@ -106,8 +106,13 @@ describe('UI Primitives and Layout Components', () => {
     expect(markup).toContain('aria-label="Primary Navigation"');
     expect(markup).toContain('aria-current="page"');
     expect(markup).toContain('Overview');
-    expect(markup).toContain('M09');
-    expect(markup).toContain('M10');
+    expect(markup).toContain('Factory');
+    expect(markup).toContain('Planning');
+    expect(markup).toContain('Schedules');
+    expect(markup).toContain('Scenarios');
+    expect(markup).toContain('Reports');
+    expect(markup).not.toContain('M09');
+    expect(markup).not.toContain('M10');
   });
 
   it('renders NotFoundView for unknown routes', () => {
@@ -156,7 +161,8 @@ describe('UI Primitives and Layout Components', () => {
       </RouterProvider>
     );
     expect(scenariosMarkup).toContain('Scenario Branching &amp; Disruption Lab');
-    expect(scenariosMarkup).toContain('Milestone 10 Implementation');
+    expect(scenariosMarkup).toContain('No Workspace Selected');
+    expect(scenariosMarkup).not.toContain('Milestone 10 Implementation');
   });
 
   it('renders full App shell and workflow overview without crashes', () => {
