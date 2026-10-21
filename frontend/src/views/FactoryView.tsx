@@ -26,7 +26,7 @@ function FactoryTabBar({
   activeTab: FactoryTab; onSelectTab: (tab: FactoryTab) => void; machineCount: number; orderCount: number;
 }): React.ReactElement {
   return (
-    <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-subtle)', marginBottom: '1.5rem', overflowX: 'auto' }}>
+    <div data-tour="factory-tabs" style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-subtle)', marginBottom: '1.5rem', overflowX: 'auto' }}>
       <button type="button" className={`btn btn-sm ${activeTab === 'machines' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => onSelectTab('machines')} style={{ borderRadius: 'var(--radius-md) var(--radius-md) 0 0' }}>
         Machines & Maintenance ({machineCount})
       </button>

@@ -170,7 +170,7 @@ export function GanttSwimlane({
             const status = op.status || 'PLANNED';
             const clock = currentTimeMinute ?? op.start_minute;
 
-            let opTitle = '';
+            let opTitle: string;
             let labelPrefix = '';
             let strokeColor = colors.border;
             let strokeDash = undefined;

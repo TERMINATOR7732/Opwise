@@ -17,7 +17,11 @@ export interface RecentSchedulesCardProps {
 }
 
 function StatusPill({ status }: { status: string }): React.ReactElement {
-  const variant = status === 'OPTIMAL' ? 'optimal' : status === 'FEASIBLE' ? 'warning' : status === 'NO_WORK_STATE' ? 'warning' : 'critical';
+  const variant = status === 'OPTIMAL'
+    ? 'optimal'
+    : status === 'FEASIBLE' || status === 'DEMO_SIMULATION' || status === 'NO_WORK_STATE'
+    ? 'warning'
+    : 'critical';
   return <Badge variant={variant} className="font-mono">{status}</Badge>;
 }
 
@@ -49,7 +53,7 @@ function SchedulesTable({
 }): React.ReactElement {
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8125rem' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 'var(--font-size-body)' }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
             <th style={{ padding: '0.5rem 0.625rem' }}>Run Name</th>
@@ -81,7 +85,7 @@ export function RecentSchedulesCard({
       actions={<Button variant="secondary" size="sm" onClick={onRefresh} isLoading={isLoading}>Refresh History</Button>}
     >
       {schedules.length === 0 ? (
-        <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+        <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--font-size-body)' }}>
           No schedules generated yet in this workspace. Run CP-SAT optimization above to generate a persistent production plan.
         </div>
       ) : (

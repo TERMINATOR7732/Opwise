@@ -117,7 +117,9 @@ function PlanningWorkspaceContent({
         factory={factory} validationResult={valResult} isValidating={isValidating}
         onValidate={handleValidate} onNavigateToFactory={() => onNavigate('factory')}
       />
-      <OptimizationParametersForm onOptimize={handleOptimize} isSolving={isSolving} isDisabled={isBlocked} />
+      <div data-tour="planning-controls">
+        <OptimizationParametersForm onOptimize={handleOptimize} isSolving={isSolving} isDisabled={isBlocked} />
+      </div>
       {optResult && <OptimizationResultCard result={optResult} onViewSchedules={() => onNavigate('schedules')} />}
       <RecentSchedulesCard schedules={state.schedules} isLoading={state.isLoading} onRefresh={loadData} onSelectSchedule={() => onNavigate('schedules')} />
     </div>

@@ -9,6 +9,7 @@ import { ApiClientError } from '../../api/client';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { ImportPreviewResponse, ImportRowError, ImportSummary } from '../../types/api';
+import { isDemoMode } from '../../demo/demoService';
 
 export interface ImportModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export interface ImportModalProps {
 
 function TemplateDownloadBar(): React.ReactElement {
   const [downloading, setDownloading] = useState<'csv' | 'xlsx' | null>(null);
+  const demoActive = isDemoMode();
 
   const handleDownload = async (format: 'csv' | 'xlsx'): Promise<void> => {
     setDownloading(format);
@@ -34,15 +36,17 @@ function TemplateDownloadBar(): React.ReactElement {
   return (
     <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
       <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-        Need schema-compliant sample files?
+        {demoActive ? 'Demo Mode: Download schema-compliant starter CSV:' : 'Need schema-compliant sample files?'}
       </div>
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleDownload('csv')} disabled={downloading !== null}>
-          {downloading === 'csv' ? 'Downloading...' : '📥 Starter CSV (.zip)'}
+          {downloading === 'csv' ? 'Downloading...' : demoActive ? '📥 Starter CSV (.csv)' : '📥 Starter CSV (.zip)'}
         </button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleDownload('xlsx')} disabled={downloading !== null}>
-          {downloading === 'xlsx' ? 'Downloading...' : '📥 Starter Excel (.xlsx)'}
-        </button>
+        {!demoActive && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleDownload('xlsx')} disabled={downloading !== null}>
+            {downloading === 'xlsx' ? 'Downloading...' : '📥 Starter Excel (.xlsx)'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -128,19 +132,29 @@ interface FileInputProps {
 }
 
 function FileInputSection({ inputRef, selectedFile, isPreviewing, onFileChange, onPreview }: FileInputProps): React.ReactElement {
+  const demoActive = isDemoMode();
   return (
     <div style={{ marginBottom: '1.25rem' }}>
       <label htmlFor="import-file-input" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
-        Select CSV Bundle (.zip) or Excel (.xlsx) File:
+        {demoActive ? 'Select Factory CSV (.csv) File:' : 'Select CSV Bundle (.zip) or Excel (.xlsx) File:'}
       </label>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        <input id="import-file-input" ref={inputRef} type="file" accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={onFileChange} style={{ flex: 1, fontSize: '0.8125rem', color: 'var(--text-secondary)' }} />
+        <input
+          id="import-file-input"
+          ref={inputRef}
+          type="file"
+          accept={demoActive ? '.csv,text/csv' : '.zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
+          onChange={onFileChange}
+          style={{ flex: 1, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}
+        />
         <Button variant="primary" size="sm" onClick={onPreview} disabled={!selectedFile || isPreviewing}>
           {isPreviewing ? 'Validating...' : 'Preview & Validate'}
         </Button>
       </div>
       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-        Expected sheets/files: <code>machines</code>, <code>orders</code>, <code>operations</code>, optional <code>downtimes</code>.
+        {demoActive
+          ? 'Demo schema: multi-section CSV with Machines, Orders, Operations, and optional Downtimes sections. (Binary .xlsx and .zip bundles require the Python backend).'
+          : 'Expected sheets/files: machines, orders, operations, optional downtimes.'}
       </div>
     </div>
   );

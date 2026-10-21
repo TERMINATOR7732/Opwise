@@ -41,8 +41,21 @@ import {
   verifyDemoSchedule,
   getDemoScheduleReport,
   getDemoScenarios,
+  getDemoScenario,
+  createDemoScenario,
+  deleteDemoScenario,
+  reoptimizeDemoScenario,
+  getDemoExecutionStatus,
+  advanceDemoClock,
+  startDemoOperation,
+  completeDemoOperation,
+  adjustDemoRemainingDuration,
+  saveDemoFactory,
+  createDemoWorkspace,
+  deleteDemoWorkspace,
 } from '../demo/demoService';
 import { exportDemoScheduleCsv, exportDemoScheduleJson } from '../demo/demoExport';
+import { previewDemoImport, confirmDemoImport, downloadDemoTemplate } from '../demo/demoImport';
 
 function createMockOptimizedResponse(workspaceId: string, req: OptimizeRequest): OptimizeResponseData {
   const detail = getDemoScheduleDetail(workspaceId, '');
@@ -106,19 +119,16 @@ export const apiEndpoints = {
 
   /** Create a new workspace */
   createWorkspace: (req: CreateWorkspaceRequest): Promise<WorkspaceResponse> =>
-    isDemoMode()
-      ? Promise.resolve({
-          id: `ws-custom-${Date.now()}`,
-          name: req.name,
-          description: req.description || '',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-      : api.post<WorkspaceResponse>('/workspaces', req),
+    isDemoMode() ? Promise.resolve(createDemoWorkspace(req)) : api.post<WorkspaceResponse>('/workspaces', req),
 
   /** Delete a workspace and cascade-delete its entities */
-  deleteWorkspace: (id: string): Promise<void> =>
-    isDemoMode() ? Promise.resolve() : api.delete<void>(`/workspaces/${id}`),
+  deleteWorkspace: (id: string): Promise<void> => {
+    if (isDemoMode()) {
+      deleteDemoWorkspace(id);
+      return Promise.resolve();
+    }
+    return api.delete<void>(`/workspaces/${id}`);
+  },
 
   /** List schedules belonging to a workspace */
   listSchedules: (workspaceId: string): Promise<ScheduleSummaryResponse[]> =>
@@ -147,8 +157,10 @@ export const apiEndpoints = {
     isDemoMode() ? Promise.resolve(getDemoFactory(workspaceId)) : api.get<FactoryConfigResponse>(`/workspaces/${workspaceId}/factory`),
 
   /** Atomically replace factory configuration for a workspace */
-  replaceFactory: (workspaceId: string, payload: FactoryConfigPayload): Promise<FactoryConfigResponse> =>
-    api.put<FactoryConfigResponse>(`/workspaces/${workspaceId}/factory`, payload),
+  replaceFactory: async (workspaceId: string, payload: FactoryConfigPayload): Promise<FactoryConfigResponse> =>
+    isDemoMode()
+      ? saveDemoFactory(workspaceId, payload)
+      : api.put<FactoryConfigResponse>(`/workspaces/${workspaceId}/factory`, payload),
 
   /** Dry-run validation of factory inputs without saving */
   validateFactory: (workspaceId: string, payload: FactoryConfigPayload): Promise<FactoryValidationResponse> =>
@@ -161,26 +173,32 @@ export const apiEndpoints = {
     isDemoMode() ? Promise.resolve(getDemoScenarios(workspaceId)) : api.get<ScenarioResponse[]>(`/workspaces/${workspaceId}/scenarios`),
 
   /** Get scenario details and reoptimization results */
-  getScenario: (workspaceId: string, scenarioId: string): Promise<ScenarioResponse> =>
-    api.get<ScenarioResponse>(`/workspaces/${workspaceId}/scenarios/${scenarioId}`),
+  getScenario: async (workspaceId: string, scenarioId: string): Promise<ScenarioResponse> =>
+    isDemoMode()
+      ? getDemoScenario(workspaceId, scenarioId)
+      : api.get<ScenarioResponse>(`/workspaces/${workspaceId}/scenarios/${scenarioId}`),
 
   /** Create an isolated disruption scenario */
-  createScenario: (workspaceId: string, req: ScenarioCreateRequest): Promise<ScenarioResponse> =>
-    api.post<ScenarioResponse>(`/workspaces/${workspaceId}/scenarios`, req),
+  createScenario: async (workspaceId: string, req: ScenarioCreateRequest): Promise<ScenarioResponse> =>
+    isDemoMode()
+      ? createDemoScenario(workspaceId, req)
+      : api.post<ScenarioResponse>(`/workspaces/${workspaceId}/scenarios`, req),
 
   /** Delete a scenario and its comparisons */
-  deleteScenario: (workspaceId: string, scenarioId: string): Promise<{ deleted: boolean; scenario_id: string }> =>
-    api.delete<{ deleted: boolean; scenario_id: string }>(`/workspaces/${workspaceId}/scenarios/${scenarioId}`),
+  deleteScenario: async (workspaceId: string, scenarioId: string): Promise<{ deleted: boolean; scenario_id: string }> =>
+    isDemoMode()
+      ? deleteDemoScenario(workspaceId, scenarioId)
+      : api.delete<{ deleted: boolean; scenario_id: string }>(`/workspaces/${workspaceId}/scenarios/${scenarioId}`),
 
   /** Reoptimize factory schedule under disruption constraints */
-  reoptimizeScenario: (
+  reoptimizeScenario: async (
     workspaceId: string,
     scenarioId: string,
-    _req?: ScenarioReoptimizeRequest
+    req?: ScenarioReoptimizeRequest
   ): Promise<ScenarioComparisonResponse> =>
     isDemoMode()
-      ? Promise.resolve(createMockComparisonResponse(workspaceId, ''))
-      : api.post<ScenarioComparisonResponse>(`/workspaces/${workspaceId}/scenarios/${scenarioId}/reoptimize`, _req),
+      ? reoptimizeDemoScenario(workspaceId, scenarioId, req)
+      : api.post<ScenarioComparisonResponse>(`/workspaces/${workspaceId}/scenarios/${scenarioId}/reoptimize`, req),
 
   /** Compare baseline schedule with scenario recovery schedule */
   compareSchedules: (workspaceId: string, req: ScenarioCompareRequest): Promise<ScenarioComparisonResponse> =>
@@ -232,48 +250,74 @@ export const apiEndpoints = {
 
   /** Upload CSV/Excel file for preview and validation */
   previewImport: (workspaceId: string, file: File): Promise<ImportPreviewResponse> => {
+    if (isDemoMode()) {
+      return previewDemoImport(workspaceId, file);
+    }
     const formData = new FormData();
     formData.append('file', file);
     return api.postForm<ImportPreviewResponse>(`/workspaces/${workspaceId}/import/preview`, formData);
   },
 
   /** Confirm and atomically commit staged import job into factory */
-  confirmImport: (workspaceId: string, jobId: string): Promise<ImportConfirmResponse> =>
-    api.post<ImportConfirmResponse>(`/workspaces/${workspaceId}/import/confirm`, { job_id: jobId }),
+  confirmImport: async (workspaceId: string, jobId: string): Promise<ImportConfirmResponse> => {
+    if (isDemoMode()) {
+      return confirmDemoImport(workspaceId, jobId);
+    }
+    return api.post<ImportConfirmResponse>(`/workspaces/${workspaceId}/import/confirm`, { job_id: jobId });
+  },
 
   /** Download starter template (format: 'csv' | 'xlsx') */
-  downloadTemplate: (format: 'csv' | 'xlsx'): Promise<void> =>
-    downloadFile(`/templates/${format}`, `opwise_factory_template.${format === 'csv' ? 'zip' : 'xlsx'}`),
+  downloadTemplate: (format: 'csv' | 'xlsx'): Promise<void> => {
+    if (isDemoMode()) {
+      try {
+        downloadDemoTemplate(format);
+        return Promise.resolve();
+      } catch (err) {
+        return Promise.reject(err);
+      }
+    }
+    return downloadFile(`/templates/${format}`, `opwise_factory_template.${format === 'csv' ? 'zip' : 'xlsx'}`);
+  },
 
   /** Advance plant clock and reconcile active operations */
-  advanceClock: (workspaceId: string, payload: ClockAdvancePayload): Promise<ExecutionStatusResponse> =>
-    api.post<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/clock/advance`, payload),
+  advanceClock: async (workspaceId: string, payload: ClockAdvancePayload): Promise<ExecutionStatusResponse> =>
+    isDemoMode()
+      ? advanceDemoClock(workspaceId, payload)
+      : api.post<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/clock/advance`, payload),
 
   /** Start a planned operation at the current plant clock */
-  startOperation: (
+  startOperation: async (
     workspaceId: string,
     operationId: string,
     payload: StartOperationPayload = {}
   ): Promise<ExecutionStatusResponse> =>
-    api.post<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/operations/${operationId}/start`, payload),
+    isDemoMode()
+      ? startDemoOperation(workspaceId, operationId, payload)
+      : api.post<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/operations/${operationId}/start`, payload),
 
   /** Complete an in-progress operation at the current plant clock */
-  completeOperation: (
+  completeOperation: async (
     workspaceId: string,
     operationId: string,
     payload: CompleteOperationPayload = {}
   ): Promise<ExecutionStatusResponse> =>
-    api.post<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/operations/${operationId}/complete`, payload),
+    isDemoMode()
+      ? completeDemoOperation(workspaceId, operationId, payload)
+      : api.post<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/operations/${operationId}/complete`, payload),
 
   /** Adjust remaining duration for an in-progress operation */
-  adjustRemainingDuration: (
+  adjustRemainingDuration: async (
     workspaceId: string,
     operationId: string,
     payload: AdjustRemainingPayload
   ): Promise<ExecutionStatusResponse> =>
-    api.patch<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/operations/${operationId}/remaining`, payload),
+    isDemoMode()
+      ? adjustDemoRemainingDuration(workspaceId, operationId, payload)
+      : api.patch<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/operations/${operationId}/remaining`, payload),
 
   /** Get shop floor execution dispatching status */
-  getExecutionStatus: (workspaceId: string): Promise<ExecutionStatusResponse> =>
-    api.get<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/status`),
+  getExecutionStatus: async (workspaceId: string): Promise<ExecutionStatusResponse> =>
+    isDemoMode()
+      ? getDemoExecutionStatus(workspaceId)
+      : api.get<ExecutionStatusResponse>(`/workspaces/${workspaceId}/execution/status`),
 };

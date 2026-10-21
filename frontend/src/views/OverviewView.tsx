@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useRouter } from '../router/RouterContext';
+import { useTour } from '../context/TourContext';
 import { AppRoute } from '../router/types';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Card } from '../components/common/Card';
@@ -31,19 +32,19 @@ function ActiveWorkspaceCard({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
         <div>
           <span className="form-label">Description</span>
-          <p style={{ color: 'var(--text-primary)', fontSize: '0.875rem' }}>
+          <p style={{ color: 'var(--text-primary)', fontSize: 'var(--font-size-body)' }}>
             {activeWorkspace?.description || 'No description provided.'}
           </p>
         </div>
         <div>
           <span className="form-label">Created At</span>
-          <p className="font-mono" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+          <p className="font-mono" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-body)' }}>
             {activeWorkspace?.created_at ? new Date(activeWorkspace.created_at).toLocaleString() : '—'}
           </p>
         </div>
         <div>
           <span className="form-label">System Mode</span>
-          <p style={{ fontSize: '0.875rem' }}>
+          <p style={{ fontSize: 'var(--font-size-body)' }}>
             <Badge variant="optimal">Local-First SQLite WAL</Badge>
           </p>
         </div>
@@ -55,12 +56,12 @@ function ActiveWorkspaceCard({
 function WorkflowSteps({ onNavigate }: { onNavigate: (route: AppRoute) => void }): React.ReactElement {
   return (
     <div>
-      <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1rem' }}>
+      <h2 style={{ fontSize: 'var(--font-size-h2)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1rem' }}>
         Production Planning Workflow
       </h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
         <Card title="1. Shop Floor & Routings" subtitle="Machines, maintenance windows, and production orders">
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-body)', marginBottom: '1rem' }}>
             Define machine capacities, planned downtime windows, and multi-operation job sequences with deterministic durations and release times.
           </p>
           <Button variant="secondary" size="sm" onClick={() => onNavigate('factory')}>
@@ -68,7 +69,7 @@ function WorkflowSteps({ onNavigate }: { onNavigate: (route: AppRoute) => void }
           </Button>
         </Card>
         <Card title="2. CP-SAT Optimization" subtitle="Pure Makespan, Weighted Tardiness, or Lexicographic">
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-body)', marginBottom: '1rem' }}>
             Run discrete constraint optimization via Google OR-Tools CP-SAT. Bounded solver envelopes with mathematical optimality gap reporting.
           </p>
           <Button variant="secondary" size="sm" onClick={() => onNavigate('planning')}>
@@ -76,7 +77,7 @@ function WorkflowSteps({ onNavigate }: { onNavigate: (route: AppRoute) => void }
           </Button>
         </Card>
         <Card title="3. Verification & Gantt" subtitle="Clean-room invariant auditing and interactive schedule">
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-body)', marginBottom: '1rem' }}>
             Validate every schedule against all 8 operational invariants. Inspect machine allocations, downtime exclusions, and bottlenecks.
           </p>
           <Button variant="secondary" size="sm" onClick={() => onNavigate('schedules')}>
@@ -91,7 +92,7 @@ function WorkflowSteps({ onNavigate }: { onNavigate: (route: AppRoute) => void }
 function ArchitectureStatusCard(): React.ReactElement {
   return (
     <Card title="System Architectural Status" subtitle="Verified Milestones & Capability Roadmap">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: 'var(--font-size-body)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>Milestone 01–07: Core CP-SAT Solver, Verifier, Metrics & SQLite REST API</span>
           <Badge variant="optimal">VERIFIED (100% PASS)</Badge>
@@ -249,14 +250,42 @@ function OverviewWorkspaceContent({
   activeWorkspace,
   onNewWorkspace,
   onNavigate,
+  onStartTour,
+  hasDismissedTour,
+  onDismissTour,
 }: {
   activeWorkspace: ReturnType<typeof useWorkspace>['activeWorkspace'];
   onNewWorkspace: () => void;
   onNavigate: (route: AppRoute) => void;
+  onStartTour: () => void;
+  hasDismissedTour: boolean;
+  onDismissTour: () => void;
 }): React.ReactElement {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <ActiveWorkspaceCard activeWorkspace={activeWorkspace} onNewWorkspace={onNewWorkspace} />
+      {!hasDismissedTour && (
+        <Card
+          title="New to Opwise? Explore the Production Planning Walkthrough"
+          subtitle="A 2-minute interactive guided walkthrough of the full discrete manufacturing workflow."
+          actions={
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <Button variant="secondary" size="sm" onClick={onDismissTour}>
+                Dismiss
+              </Button>
+              <Button variant="primary" size="sm" onClick={onStartTour}>
+                Start Guided Tour →
+              </Button>
+            </div>
+          }
+        >
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-body)', lineHeight: 'var(--line-height-body)' }}>
+            Learn how factory machines, maintenance downtimes, and orders translate into Google OR-Tools CP-SAT discrete optimization models, inspect interactive Gantt schedules, simulate shop-floor execution, and audit disruption recovery.
+          </p>
+        </Card>
+      )}
+      <div data-tour="overview-welcome">
+        <ActiveWorkspaceCard activeWorkspace={activeWorkspace} onNewWorkspace={onNewWorkspace} />
+      </div>
       <DemoScenariosCard />
       <WorkflowSteps onNavigate={onNavigate} />
       <ArchitectureStatusCard />
@@ -267,6 +296,7 @@ function OverviewWorkspaceContent({
 export function OverviewView(): React.ReactElement {
   const { workspaces, activeWorkspace, status, error, refreshWorkspaces, createWorkspace } = useWorkspace();
   const { navigate } = useRouter();
+  const { startTour, hasDismissedTour, closeTour } = useTour();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   return (
@@ -275,7 +305,16 @@ export function OverviewView(): React.ReactElement {
         title="Production Planning Overview"
         description="Deterministic discrete manufacturing optimization powered by Google OR-Tools CP-SAT and verified by clean-room invariant auditing."
         badge={<Badge variant="optimal">Milestone 13 Active</Badge>}
-        actions={<Button variant="secondary" size="sm" onClick={() => refreshWorkspaces()}>Refresh State</Button>}
+        actions={
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Button variant="primary" size="sm" onClick={startTour} aria-label="Start Guided Product Tour">
+              🧭 Take a Tour
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => refreshWorkspaces()}>
+              Refresh State
+            </Button>
+          </div>
+        }
       />
 
       {error && (
@@ -287,7 +326,27 @@ export function OverviewView(): React.ReactElement {
       {status === 'loading' && workspaces.length === 0 ? (
         <LoadingState message="Loading workspaces..." />
       ) : workspaces.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div data-tour="overview-welcome" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {!hasDismissedTour && (
+            <Card
+              title="New to Opwise? Explore the Production Planning Walkthrough"
+              subtitle="A 2-minute interactive guided walkthrough of the full discrete manufacturing workflow."
+              actions={
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <Button variant="secondary" size="sm" onClick={closeTour}>
+                    Dismiss
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={startTour}>
+                    Start Guided Tour →
+                  </Button>
+                </div>
+              }
+            >
+              <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-body)', lineHeight: 'var(--line-height-body)' }}>
+                Learn how factory machines, maintenance downtimes, and orders translate into Google OR-Tools CP-SAT discrete optimization models, inspect interactive Gantt schedules, simulate shop-floor execution, and audit disruption recovery.
+              </p>
+            </Card>
+          )}
           <EmptyState
             title="No Workspaces Configured"
             description="Opwise organizes production planning into isolated workspaces. Create your first workspace to begin modeling shop floor capacity, or explore one of the pre-solved synthetic demo scenarios below."
@@ -300,6 +359,9 @@ export function OverviewView(): React.ReactElement {
           activeWorkspace={activeWorkspace}
           onNewWorkspace={() => setShowCreateModal(true)}
           onNavigate={navigate}
+          onStartTour={startTour}
+          hasDismissedTour={hasDismissedTour}
+          onDismissTour={closeTour}
         />
       )}
 

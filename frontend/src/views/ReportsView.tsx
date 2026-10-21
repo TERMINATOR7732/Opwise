@@ -118,7 +118,7 @@ export function ReportsView(): React.ReactElement {
   }
 
   return (
-    <div className="reports-view-container">
+    <div className="reports-view-container" data-tour="reports-summary">
       <PageHeader
         title="Reports & Analytics"
         description="In-depth tabular analytics: order tardiness breakdown, machine utilization and idle logs, bottleneck reports, and sanitized CSV/JSON exports."
@@ -149,7 +149,8 @@ export function ReportsView(): React.ReactElement {
             value={selectedScheduleId || ''}
             onChange={(e) => setSelectedScheduleId(e.target.value)}
             disabled={isLoadingReport}
-            className="rounded border border-slate-700 bg-slate-900 px-3 py-1.5 font-mono text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
+            className="rounded border border-slate-700 bg-slate-900 px-3 py-1.5 font-mono text-slate-200 focus:border-cyan-500 focus:outline-none"
+            style={{ fontSize: 'var(--font-size-body)' }}
           >
             {schedules.map((s) => (
               <option key={s.id} value={s.id}>

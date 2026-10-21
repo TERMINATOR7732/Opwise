@@ -66,7 +66,7 @@ export function CreateScenarioModal({
     setDowntimes((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleUpdateDowntime = (index: number, field: keyof DowntimeDisruptionItem, value: any) => {
+  const handleUpdateDowntime = (index: number, field: keyof DowntimeDisruptionItem, value: string | number) => {
     setDowntimes((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
   };
 
@@ -110,8 +110,8 @@ export function CreateScenarioModal({
         disruption_delta: delta,
       });
       onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to create scenario.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create scenario.');
     } finally {
       setSubmitting(false);
     }
@@ -235,7 +235,7 @@ export function CreateScenarioModal({
               </label>
               <select
                 value={disruptionType}
-                onChange={(e) => setDisruptionType(e.target.value as any)}
+                onChange={(e) => setDisruptionType(e.target.value as 'MACHINE_DOWNTIME' | 'URGENT_ORDER')}
                 style={{
                   width: '100%',
                   padding: '0.5rem 0.75rem',

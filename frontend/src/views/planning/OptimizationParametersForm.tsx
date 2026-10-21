@@ -43,9 +43,9 @@ function ObjectiveOption({
       }}
     >
       <input type="radio" name="objectiveMode" value={keyId} checked={isSelected} onChange={onSelect} style={{ marginTop: '0.2rem' }} />
-      <div style={{ fontSize: '0.8125rem' }}>
+      <div style={{ fontSize: 'var(--font-size-body)' }}>
         <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{info.title}</strong>
-        <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{info.desc}</span>
+        <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-small)' }}>{info.desc}</span>
       </div>
     </label>
   );

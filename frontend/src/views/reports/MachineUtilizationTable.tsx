@@ -17,13 +17,13 @@ export function MachineUtilizationTable({ machines }: MachineUtilizationTablePro
     <Card className="machine-utilization-table mb-6 border border-slate-700 bg-slate-900/60 p-5">
       <div className="border-b border-slate-700/60 pb-3">
         <h3 className="text-base font-bold text-slate-100">Machine Capacity & Utilization Audit</h3>
-        <p className="mt-0.5 text-xs text-slate-400">
+        <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
           Workload, planned maintenance, and net utilization computed using true available window: Wm / (Cmax - Dm).
         </p>
       </div>
 
       <div className="mt-4 overflow-x-auto">
-        <table className="w-full text-left text-xs text-slate-300">
+        <table className="w-full text-left text-slate-300">
           <thead className="border-b border-slate-700 bg-slate-800/60 text-slate-400 font-semibold uppercase tracking-wider">
             <tr>
               <th scope="col" className="px-3 py-2.5">Machine</th>

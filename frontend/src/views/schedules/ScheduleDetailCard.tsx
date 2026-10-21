@@ -104,11 +104,11 @@ function OnDemandVerifier({
 
 function ScheduleOpsTable({ s }: { s: ScheduleDetailResponse }): React.ReactElement {
   if (s.scheduled_operations.length === 0) {
-    return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>No operations scheduled.</div>;
+    return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--font-size-body)' }}>No operations scheduled.</div>;
   }
   return (
     <div style={{ overflowX: 'auto', maxHeight: '280px' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8125rem' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 'var(--font-size-body)' }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
             <th style={{ padding: '0.5rem 0.625rem' }}>Order</th>

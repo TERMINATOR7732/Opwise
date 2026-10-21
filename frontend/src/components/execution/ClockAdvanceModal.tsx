@@ -172,7 +172,7 @@ export function ClockAdvanceModal({
               <h2 id="clock-advance-title" className="card-title" style={{ margin: 0 }}>
                 Advance Plant Clock
               </h2>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--text-muted)' }}>
                 Current Plant Clock: <strong className="font-mono">t₀ = {currentClock}m</strong>
               </span>
             </div>
@@ -197,7 +197,7 @@ export function ClockAdvanceModal({
                   border: '1px solid var(--color-critical, #ef4444)',
                   borderRadius: 'var(--radius-sm)',
                   color: 'var(--color-critical, #ef4444)',
-                  fontSize: '0.8125rem',
+                  fontSize: 'var(--font-size-body)',
                 }}
               >
                 {formError}
@@ -249,7 +249,7 @@ export function ClockAdvanceModal({
                 }}
                 onClick={() => setMode('increment')}
               >
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: 'var(--font-size-body)', fontWeight: 600 }}>
                   <input
                     type="radio"
                     name="advance-mode"
@@ -268,9 +268,9 @@ export function ClockAdvanceModal({
                       setMode('increment');
                       setAdvanceBy(Math.max(0, parseInt(e.target.value, 10) || 0));
                     }}
-                    style={{ width: '90px', padding: '0.35rem 0.5rem', fontSize: '0.875rem' }}
+                    style={{ width: '90px', padding: '0.35rem 0.5rem', fontSize: 'var(--font-size-body)' }}
                   />
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>minutes</span>
+                  <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--text-muted)' }}>minutes</span>
                 </div>
               </div>
 
@@ -284,7 +284,7 @@ export function ClockAdvanceModal({
                 }}
                 onClick={() => setMode('target')}
               >
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: 'var(--font-size-body)', fontWeight: 600 }}>
                   <input
                     type="radio"
                     name="advance-mode"
@@ -303,9 +303,9 @@ export function ClockAdvanceModal({
                       setMode('target');
                       setTargetMinute(Math.max(currentClock, parseInt(e.target.value, 10) || currentClock));
                     }}
-                    style={{ width: '90px', padding: '0.35rem 0.5rem', fontSize: '0.875rem' }}
+                    style={{ width: '90px', padding: '0.35rem 0.5rem', fontSize: 'var(--font-size-body)' }}
                   />
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>min</span>
+                  <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--text-muted)' }}>min</span>
                 </div>
               </div>
             </div>
@@ -320,7 +320,7 @@ export function ClockAdvanceModal({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                fontSize: '0.8125rem',
+                fontSize: 'var(--font-size-body)',
               }}
             >
               <span>
@@ -343,11 +343,11 @@ export function ClockAdvanceModal({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                   <Badge variant="warning">RECONCILIATION REQUIRED</Badge>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--text-secondary)' }}>
                     {overdueOps.length} operation(s) reached estimated finish.
                   </span>
                 </div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
+                <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
                   Per Policy B, overdue operations must either be marked completed at the destination clock or have supervisor-estimated remaining minutes specified.
                 </p>
 
@@ -371,15 +371,15 @@ export function ClockAdvanceModal({
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
+                          <span style={{ fontWeight: 600, fontSize: 'var(--font-size-body)' }}>
                             {op.orderExternalId} (#{op.sequenceIndex}) — {op.orderName}
                           </span>
-                          <span className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          <span className="font-mono" style={{ fontSize: 'var(--font-size-small)', color: 'var(--text-muted)' }}>
                             Machine: {op.machineId} · Est. End: {estFinish}m
                           </span>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.25rem', fontSize: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.25rem', fontSize: 'var(--font-size-body)' }}>
                           <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
                             <input
                               type="checkbox"
@@ -399,7 +399,7 @@ export function ClockAdvanceModal({
                               value={override}
                               onChange={(e) => handleOverrideChange(op.id, e.target.value)}
                               className="form-input font-mono"
-                              style={{ width: '70px', padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
+                              style={{ width: '70px', padding: '0.2rem 0.4rem', fontSize: 'var(--font-size-body)' }}
                             />
                             <span style={{ color: 'var(--text-muted)' }}>min</span>
                           </div>

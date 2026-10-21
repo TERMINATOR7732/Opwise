@@ -92,7 +92,11 @@ export function ScenarioDetailCard({
             </span>
             <div style={{ marginTop: '0.25rem' }}>
               {hasRecovery ? (
-                <Badge variant="optimal">REOPTIMIZED (READY)</Badge>
+                scenario.comparison?.unlike_comparison_warning ? (
+                  <Badge variant="warning">DEMO SIMULATION</Badge>
+                ) : (
+                  <Badge variant="optimal">REOPTIMIZED (READY)</Badge>
+                )
               ) : (
                 <Badge variant="neutral">NOT SOLVED YET</Badge>
               )}

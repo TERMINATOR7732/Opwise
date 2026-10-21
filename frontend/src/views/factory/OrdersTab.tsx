@@ -61,7 +61,7 @@ function OperationItem({
             ? 'var(--color-optimal)'
             : 'var(--border-subtle)'
         }`,
-        fontSize: '0.75rem',
+        fontSize: 'var(--font-size-small)',
       }}
     >
       <span className="font-mono" style={{ fontWeight: 600 }}>
@@ -70,21 +70,21 @@ function OperationItem({
       <span style={{ color: 'var(--text-muted)' }}>({op.processing_minutes}m)</span>
 
       {isCompleted && (
-        <span className="badge badge-optimal" style={{ fontSize: '0.65rem', padding: '0.1rem 0.3rem' }}>
+        <span className="badge badge-optimal" style={{ fontSize: 'var(--font-size-caption)', padding: '0.1rem 0.35rem' }}>
           ✓ Done
         </span>
       )}
 
       {isRunning && (
         <>
-          <span className="badge badge-warning" style={{ fontSize: '0.65rem', padding: '0.1rem 0.3rem' }}>
+          <span className="badge badge-warning" style={{ fontSize: 'var(--font-size-caption)', padding: '0.1rem 0.35rem' }}>
             Running ({op.remaining_duration_minutes ?? op.processing_minutes}m rem)
           </span>
           {onComplete && (
             <button
               type="button"
               className="btn btn-primary btn-sm"
-              style={{ padding: '0.1rem 0.35rem', fontSize: '0.7rem' }}
+              style={{ padding: '0.15rem 0.4rem', fontSize: 'var(--font-size-caption)' }}
               onClick={() => onComplete(op.id)}
               aria-label={`Complete operation ${op.id}`}
             >
@@ -98,7 +98,7 @@ function OperationItem({
         <button
           type="button"
           className="btn btn-secondary btn-sm"
-          style={{ padding: '0.1rem 0.35rem', fontSize: '0.7rem' }}
+          style={{ padding: '0.15rem 0.4rem', fontSize: 'var(--font-size-caption)' }}
           onClick={() => onStart(op.id)}
           aria-label={`Start operation ${op.id}`}
         >
@@ -203,7 +203,7 @@ function OrdersTable({
   return (
     <Card title="Active Production Orders Table" subtitle="Sorted by order code. Operations sequence dictates strict processing order.">
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8125rem' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 'var(--font-size-body)' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
               <th style={{ padding: '0.625rem 0.75rem' }}>Order Code</th>
@@ -259,8 +259,8 @@ export function OrdersTab({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)' }}>Production Orders & Sequences ({orders.length})</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>Job orders with sequential machine operations, release dates, and tardiness penalty weights.</p>
+          <h2 style={{ fontSize: 'var(--font-size-h2)', fontWeight: 600, color: 'var(--text-primary)' }}>Production Orders & Sequences ({orders.length})</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-body)' }}>Job orders with sequential machine operations, release dates, and tardiness penalty weights.</p>
         </div>
         <Button variant="primary" size="sm" onClick={() => { setEditingOrder(null); setModalOpen(true); }} disabled={machines.length === 0}>
           + Create Production Order
@@ -269,7 +269,7 @@ export function OrdersTab({
 
       {machines.length === 0 ? (
         <Card title="Prerequisite: Machine Workstations Required">
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-body)' }}>
             Before creating production orders and routing steps, you must configure at least one machine workstation in the <strong>Machines & Maintenance</strong> tab.
           </p>
         </Card>

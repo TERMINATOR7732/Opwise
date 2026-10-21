@@ -60,8 +60,8 @@ export function ScenariosView(): React.ReactElement {
       if (scenList.length > 0 && !selectedScenarioId) {
         setSelectedScenarioId(scenList[0].id);
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load scenario workspace data.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load scenario workspace data.');
     } finally {
       setLoading(false);
     }
@@ -107,8 +107,8 @@ export function ScenariosView(): React.ReactElement {
         setRecoverySchedule(null);
         setComparison(null);
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load scenario schedule details.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load scenario schedule details.');
     }
   }, [activeWorkspace, activeScenario]);
 
@@ -137,8 +137,8 @@ export function ScenariosView(): React.ReactElement {
         const recSched = await apiEndpoints.getSchedule(activeWorkspace.id, updatedScen.reoptimized_schedule_id);
         setRecoverySchedule(recSched);
       }
-    } catch (err: any) {
-      setError(err?.message || 'Reoptimization failed.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Reoptimization failed.');
     } finally {
       setIsReoptimizing(false);
     }
@@ -152,8 +152,8 @@ export function ScenariosView(): React.ReactElement {
       const nextScens = scenarios.filter((s) => s.id !== activeScenario.id);
       setScenarios(nextScens);
       setSelectedScenarioId(nextScens[0]?.id || null);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to delete scenario.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete scenario.');
     }
   };
 
@@ -178,7 +178,7 @@ export function ScenariosView(): React.ReactElement {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div data-tour="scenarios-view" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <PageHeader
         title="Scenario Branching & Disruption Lab"
         description="Model machine breakdowns, urgent rush orders, and delivery delays without mutating baseline solutions."
@@ -234,7 +234,7 @@ export function ScenariosView(): React.ReactElement {
                   onClick={() => setSelectedScenarioId(s.id)}
                   style={{
                     padding: '0.5rem 0.875rem',
-                    fontSize: '0.8125rem',
+                    fontSize: 'var(--font-size-body)',
                     fontWeight: 500,
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid',

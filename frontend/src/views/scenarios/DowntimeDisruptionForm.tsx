@@ -13,7 +13,7 @@ interface DowntimeDisruptionFormProps {
   downtimes: DowntimeDisruptionItem[];
   onAdd: () => void;
   onRemove: (index: number) => void;
-  onUpdate: (index: number, field: keyof DowntimeDisruptionItem, value: any) => void;
+  onUpdate: (index: number, field: keyof DowntimeDisruptionItem, value: string | number) => void;
 }
 
 export function DowntimeDisruptionForm({

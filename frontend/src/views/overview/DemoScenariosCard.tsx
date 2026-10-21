@@ -46,16 +46,16 @@ function ScenarioCardItem({
           </span>
           <ScenarioBadge fixture={fixture} />
         </div>
-        <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
+        <h3 style={{ fontSize: 'var(--font-size-h3)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
           {fixture.name}
         </h3>
-        <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+        <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
           {fixture.description}
         </p>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.625rem' }}>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }} className="font-mono">
+        <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--text-muted)' }} className="font-mono">
           {fixture.factory.machines.length} Machines · {fixture.factory.orders.length} Orders
         </div>
         <Button variant="secondary" size="sm" onClick={() => onLoad(fixture)}>

@@ -28,10 +28,10 @@ export function EmptyState({
       }}
     >
       {icon && <div style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>{icon}</div>}
-      <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+      <h3 style={{ fontSize: 'var(--font-size-h3)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
         {title}
       </h3>
-      <p style={{ maxWidth: '480px', color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: action ? '1.5rem' : 0 }}>
+      <p style={{ maxWidth: '480px', color: 'var(--text-secondary)', fontSize: 'var(--font-size-body)', marginBottom: action ? '1.5rem' : 0 }}>
         {description}
       </p>
       {action && <div>{action}</div>}

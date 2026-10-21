@@ -92,7 +92,7 @@ export function GanttOperationDetail({
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <strong style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+          <strong style={{ fontSize: 'var(--font-size-body)', color: 'var(--text-primary)' }}>
             Operation Allocation Details
           </strong>
           <Badge variant="neutral" className="font-mono">

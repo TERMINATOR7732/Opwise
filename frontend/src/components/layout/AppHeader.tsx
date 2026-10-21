@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useOptionalFactory } from '../../context/FactoryContext';
+import { useTour } from '../../context/TourContext';
 import { apiEndpoints } from '../../api/endpoints';
 import { Button } from '../common/Button';
 import { ClockAdvanceModal, InProgressOpInfo } from '../execution/ClockAdvanceModal';
@@ -243,6 +244,7 @@ function PlantClockWidget({
 }): React.ReactElement {
   return (
     <div
+      data-tour="plant-clock"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -251,11 +253,11 @@ function PlantClockWidget({
         backgroundColor: 'var(--bg-app)',
         borderRadius: 'var(--radius-sm)',
         border: '1px solid var(--border-subtle)',
-        fontSize: '0.75rem',
+        fontSize: 'var(--font-size-small)',
       }}
       title="Plant Clock represents current operational simulated shop floor minute"
     >
-      <span style={{ fontSize: '0.875rem' }} aria-hidden="true">⏱️</span>
+      <span style={{ fontSize: 'var(--font-size-body)' }} aria-hidden="true">⏱️</span>
       <span style={{ color: 'var(--text-secondary)' }}>Plant Clock:</span>
       <strong className="font-mono" style={{ color: 'var(--color-primary)' }}>t₀ = {currentTime}m</strong>
       <Button
@@ -263,7 +265,7 @@ function PlantClockWidget({
         size="sm"
         onClick={onOpenAdvance}
         disabled={disabled}
-        style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', marginLeft: '0.25rem' }}
+        style={{ padding: '0.15rem 0.5rem', fontSize: 'var(--font-size-small)', marginLeft: '0.25rem' }}
       >
         Advance
       </Button>
@@ -274,6 +276,7 @@ function PlantClockWidget({
 export function AppHeader({ onToggleSidebar, isSidebarOpen }: AppHeaderProps): React.ReactElement {
   const { workspaces, activeWorkspaceId, selectWorkspace, createWorkspace, status } = useWorkspace();
   const factoryCtx = useOptionalFactory();
+  const { startTour } = useTour();
   const isOnline = useBackendStatus();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
@@ -309,6 +312,16 @@ export function AppHeader({ onToggleSidebar, isSidebarOpen }: AppHeaderProps): R
     <header className="app-header">
       <BrandLogo onToggleSidebar={onToggleSidebar} isSidebarOpen={isSidebarOpen} />
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={startTour}
+          aria-label="Start Guided Product Tour"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+        >
+          <span aria-hidden="true">🧭</span>
+          <span>Guided Tour</span>
+        </Button>
         {factoryCtx && (
           <PlantClockWidget
             currentTime={currentClock}

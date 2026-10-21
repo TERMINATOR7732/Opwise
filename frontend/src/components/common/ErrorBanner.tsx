@@ -12,7 +12,7 @@ export interface ErrorBannerProps {
 
 function ErrorDetailList({ details }: { details: ValidationErrorDetail[] }): React.ReactElement {
   return (
-    <ul style={{ marginTop: '0.75rem', paddingLeft: '1.25rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+    <ul style={{ marginTop: '0.75rem', paddingLeft: '1.25rem', fontSize: 'var(--font-size-small)', color: 'var(--text-secondary)' }}>
       {details.map((detail, idx) => (
         <li key={idx}>
           <code className="font-mono" style={{ color: 'var(--color-critical)' }}>{detail.field}</code>: {detail.issue}
@@ -54,11 +54,11 @@ export function ErrorBanner({
               }}
               aria-hidden="true"
             />
-            <strong style={{ color: 'var(--color-critical)', fontSize: '0.875rem' }}>
+            <strong style={{ color: 'var(--color-critical)', fontSize: 'var(--font-size-body)' }}>
               {code ? `[${code}] Operational Error` : 'Operational Error'}
             </strong>
           </div>
-          <p style={{ color: 'var(--text-primary)', fontSize: '0.875rem', lineHeight: 1.4 }}>{message}</p>
+          <p style={{ color: 'var(--text-primary)', fontSize: 'var(--font-size-body)', lineHeight: 1.4 }}>{message}</p>
           {isDetailsArray && <ErrorDetailList details={details as ValidationErrorDetail[]} />}
         </div>
 

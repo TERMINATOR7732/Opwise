@@ -194,12 +194,13 @@ export function WorkspaceProvider({
   initialActiveId,
 }: WorkspaceProviderProps): React.ReactElement {
   const state = useWorkspaceState(initialWorkspaces, initialActiveId);
+  const { refreshWorkspaces } = state;
 
   useEffect(() => {
     if (initialWorkspaces === undefined) {
-      state.refreshWorkspaces();
+      refreshWorkspaces();
     }
-  }, [initialWorkspaces, state.refreshWorkspaces]);
+  }, [initialWorkspaces, refreshWorkspaces]);
 
   const activeWorkspace = useMemo(
     () => state.workspaces.find((w) => w.id === state.activeWorkspaceId) || null,

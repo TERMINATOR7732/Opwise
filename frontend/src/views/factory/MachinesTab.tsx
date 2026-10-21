@@ -42,7 +42,7 @@ function MachineCard({
         </div>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8125rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: 'var(--font-size-body)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
           <span>Assigned Downtimes:</span>
           <span className="font-mono" style={{ color: downtimeCount > 0 ? 'var(--color-warning)' : 'var(--text-primary)' }}>
@@ -100,14 +100,14 @@ function DowntimeTable({
   const machineMap = new Map(machines.map((m) => [m.id, m]));
   if (downtimes.length === 0) {
     return (
-      <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+      <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--font-size-body)' }}>
         No planned maintenance windows scheduled. All workstations are available at 100% capacity.
       </div>
     );
   }
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8125rem' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 'var(--font-size-body)' }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
             <th style={{ padding: '0.625rem 0.75rem' }}>Machine</th>
@@ -168,8 +168,8 @@ export function MachinesTab({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)' }}>Machine Workstations ({machines.length})</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>Exclusive discrete processing resources with non-overlapping capacity.</p>
+          <h2 style={{ fontSize: 'var(--font-size-h2)', fontWeight: 600, color: 'var(--text-primary)' }}>Machine Workstations ({machines.length})</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-body)' }}>Exclusive discrete processing resources with non-overlapping capacity.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <Button variant="secondary" size="sm" onClick={() => { setSelectedMachineForDowntime(undefined); setDowntimeModalOpen(true); }} disabled={machines.length === 0}>+ Schedule Maintenance</Button>

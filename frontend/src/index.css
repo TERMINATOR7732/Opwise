@@ -3,6 +3,11 @@
  * Governed by SPECIFICATION.md Section 8.3 & PROJECT_RULES.md Rule 3.
  */
 
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
 :root {
   --bg-app: #0f172a;          /* Dark Slate 900 */
   --bg-surface: #1e293b;      /* Dark Slate 800 */
@@ -33,8 +38,29 @@
   --color-neutral-bg: rgba(100, 116, 139, 0.12);
   --color-neutral-border: rgba(100, 116, 139, 0.35);
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --color-primary: #3b82f6;   /* Blue 500 */
+
+  /* Typography System */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "JetBrains Mono", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+
+  /* Shared Typography Scale Tokens */
+  --font-size-body: 15px;
+  --font-size-small: 13px;
+  --font-size-caption: 12px;
+  --font-size-h1: 28px;
+  --font-size-h2: 22px;
+  --font-size-h3: 18px;
+
+  /* Font Weight Tokens */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line Heights */
+  --line-height-body: 1.5;
+  --line-height-heading: 1.25;
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -54,10 +80,37 @@ html, body {
   background-color: var(--bg-app);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  font-weight: var(--font-weight-normal);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+}
+
+/* Headings Visual Hierarchy */
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-heading);
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+}
+
+p, span, label, input, button, select, textarea {
+  font-family: inherit;
 }
 
 /* Accessible Focus States */
@@ -146,7 +199,8 @@ html, body {
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   text-decoration: none;
-  font-weight: 500;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
   border: 1px solid transparent;
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
@@ -180,13 +234,15 @@ html, body {
 }
 
 .card-title {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
 }
 
 .card-body {
   padding: 1.25rem;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
 }
 
 /* Buttons */
@@ -196,8 +252,9 @@ html, body {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  font-family: inherit;
   border-radius: var(--radius-md);
   cursor: pointer;
   border: 1px solid transparent;
@@ -216,7 +273,7 @@ html, body {
 .btn-secondary:hover:not(:disabled) { background-color: var(--bg-surface-hover); }
 .btn-danger { background-color: var(--color-critical); color: #ffffff; }
 .btn-danger:hover:not(:disabled) { background-color: #dc2626; }
-.btn-sm { padding: 0.25rem 0.625rem; font-size: 0.75rem; }
+.btn-sm { padding: 0.25rem 0.625rem; font-size: var(--font-size-small); }
 
 /* Badges */
 .badge {
@@ -225,8 +282,8 @@ html, body {
   gap: 0.375rem;
   padding: 0.2rem 0.5rem;
   border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
   line-height: 1;
 }
 
@@ -242,8 +299,8 @@ html, body {
 
 .form-label {
   display: block;
-  font-size: 0.8125rem;
-  font-weight: 500;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
   color: var(--text-secondary);
   margin-bottom: 0.375rem;
 }
@@ -255,7 +312,8 @@ html, body {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  font-size: 0.875rem;
+  font-size: var(--font-size-body);
+  font-family: inherit;
 }
 
 .form-input:focus {
@@ -290,6 +348,101 @@ html, body {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+
+/* Tables */
+table {
+  font-size: var(--font-size-body);
+}
+
+table th {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+table td {
+  font-size: var(--font-size-body);
+  color: var(--text-primary);
+}
+
+/* Guided Product Tour Styles */
+.tour-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.7);
+  z-index: 1000;
+  pointer-events: auto;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.tour-spotlight {
+  position: fixed;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 4px var(--color-optimal), 0 0 0 9999px rgba(15, 23, 42, 0.75);
+  z-index: 1001;
+  pointer-events: none;
+  transition: all 0.25s ease-out;
+}
+
+.tour-popover {
+  position: fixed;
+  z-index: 1002;
+  width: calc(100% - 2rem);
+  max-width: 440px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  color: var(--text-primary);
+  font-size: var(--font-size-body);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: tourFadeIn 0.2s ease-out;
+}
+
+@keyframes tourFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tour-popover-header {
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--bg-surface-elevated);
+}
+
+.tour-popover-body {
+  padding: 1.25rem;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  color: var(--text-secondary);
+}
+
+.tour-popover-body h3 {
+  color: var(--text-primary);
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: 0.5rem;
+}
+
+.tour-popover-footer {
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--bg-surface);
 }
 
 /* Responsive Rules */

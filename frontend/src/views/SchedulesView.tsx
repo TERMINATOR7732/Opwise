@@ -23,7 +23,11 @@ function ScheduleListRow({
   s: ScheduleSummaryResponse; isSelected: boolean; onSelect: () => void;
 }): React.ReactElement {
   const dateStr = new Date(s.created_at).toLocaleString();
-  const stVariant = s.solver_status === 'OPTIMAL' ? 'optimal' : s.solver_status === 'FEASIBLE' ? 'warning' : 'critical';
+  const stVariant = s.solver_status === 'OPTIMAL'
+    ? 'optimal'
+    : s.solver_status === 'FEASIBLE' || s.solver_status === 'DEMO_SIMULATION'
+    ? 'warning'
+    : 'critical';
   return (
     <tr style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: isSelected ? 'var(--color-primary-subtle, rgba(59, 130, 246, 0.05))' : 'transparent' }}>
       <td style={{ padding: '0.625rem 0.75rem', fontWeight: 600 }}>{s.name}</td>
@@ -49,7 +53,7 @@ function SchedulesListTable({
 }): React.ReactElement {
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8125rem' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 'var(--font-size-body)' }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
             <th style={{ padding: '0.625rem 0.75rem' }}>Schedule Name</th>
@@ -132,12 +136,12 @@ export function SchedulesView(): React.ReactElement {
       ) : schedules.length === 0 ? (
         <EmptyState title="No Schedules Generated Yet" description="No optimization schedules have been recorded for this workspace. Run the CP-SAT optimizer to create your first schedule." action={<Button variant="primary" onClick={() => navigate('planning')}>Open Planning Engine →</Button>} />
       ) : (
-        <>
+        <div data-tour="gantt-chart" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {selectedDetail && <ScheduleDetailCard schedule={selectedDetail} workspaceId={activeWorkspace.id} onClose={() => setSelectedDetail(null)} />}
           <Card title={`All Persisted Schedules (${schedules.length})`} subtitle="Sorted by persistence timestamp. Click Inspect on any record to view telemetry and operation allocations.">
             <SchedulesListTable schedules={schedules} selectedId={selectedDetail?.id || null} onSelect={handleSelectSchedule} />
           </Card>
-        </>
+        </div>
       )}
     </div>
   );

@@ -21,7 +21,7 @@ export function LoadingState({ message = 'Loading operational data...', classNam
       }}
     >
       <span className="status-dot status-dot-loading" aria-hidden="true" />
-      <span style={{ fontSize: '0.875rem' }}>{message}</span>
+      <span style={{ fontSize: 'var(--font-size-body)' }}>{message}</span>
     </div>
   );
 }

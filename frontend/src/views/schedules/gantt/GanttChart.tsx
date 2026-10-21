@@ -95,7 +95,11 @@ export function GanttChart({
 
   const isOptimal = solverStatus === 'OPTIMAL';
   const isVerified = verificationStatus === 'VERIFIED';
-  const solverBadgeVariant = isOptimal ? 'optimal' : solverStatus === 'FEASIBLE' ? 'warning' : 'critical';
+  const solverBadgeVariant = isOptimal
+    ? 'optimal'
+    : solverStatus === 'FEASIBLE' || solverStatus === 'DEMO_SIMULATION'
+    ? 'warning'
+    : 'critical';
 
   return (
     <div
@@ -151,7 +155,7 @@ export function GanttChart({
             </Badge>
           )}
           <Badge variant={solverBadgeVariant} className="font-mono">
-            {isOptimal ? 'CP-SAT OPTIMAL' : solverStatus}
+            {isOptimal ? 'CP-SAT OPTIMAL' : solverStatus === 'DEMO_SIMULATION' ? 'DEMO SIMULATION' : solverStatus}
           </Badge>
           <Badge variant={isVerified ? 'optimal' : 'critical'} className="font-mono">
             {verificationStatus}
