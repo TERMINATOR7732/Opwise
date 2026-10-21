@@ -14,12 +14,12 @@
 
 This document (`SPECIFICATION.md`) is the **authoritative master product specification** for Opwise. Detailed technical domains are codified in accompanying architecture and design documents. In the event of any ambiguity, this document and its linked companions govern implementation:
 
-0. [PROJECT_RULES.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/PROJECT_RULES.md) — Permanent project constitution, ₹0 operating cost, anti-AI-slop UX, code navigation, continuous GitHub backup, and testing discipline.
-1. [ARCHITECTURE.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/ARCHITECTURE.md) — Monorepo structure, component responsibilities, dependency flow, tiered deployment topology, and contributor guide.
-2. [SOLVER_MODEL.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/SOLVER_MODEL.md) — Mathematical formulation, CP-SAT constraints, objectives, downtime normalization, and independent schedule verification.
-3. [DATA_AND_API.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DATA_AND_API.md) — Relational schema, SQLite WAL persistence, REST API v1 contracts, and CSV/Excel data exchange.
-4. [TEST_AND_RELEASE_PLAN.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/TEST_AND_RELEASE_PLAN.md) — Acceptance matrix, test plan, 14-milestone delivery roadmap, and release gates.
-5. [DECISIONS.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DECISIONS.md) — Architecture Decision Records (ADRs 001–012), trade-offs, and boundary assumptions.
+0. [PROJECT_RULES.md](PROJECT_RULES.md) — Permanent project constitution, ₹0 operating cost, anti-AI-slop UX, code navigation, continuous GitHub backup, and testing discipline.
+1. [ARCHITECTURE.md](ARCHITECTURE.md) — Monorepo structure, component responsibilities, dependency flow, tiered deployment topology, and contributor guide.
+2. [SOLVER_MODEL.md](SOLVER_MODEL.md) — Mathematical formulation, CP-SAT constraints, objectives, downtime normalization, and independent schedule verification.
+3. [DATA_AND_API.md](DATA_AND_API.md) — Relational schema, SQLite WAL persistence, REST API v1 contracts, and CSV/Excel data exchange.
+4. [TEST_AND_RELEASE_PLAN.md](TEST_AND_RELEASE_PLAN.md) — Acceptance matrix, test plan, 14-milestone delivery roadmap, and release gates.
+5. [DECISIONS.md](DECISIONS.md) — Architecture Decision Records (ADRs 001–012), trade-offs, and boundary assumptions.
 
 ---
 
@@ -94,7 +94,7 @@ Opwise formally categorizes six input conditions:
 
 The Opwise mathematical domain model represents a classical Job Shop Scheduling Problem extended with release dates, soft due dates, tardiness weights, and machine downtimes ($Jm | r_j, \text{downtime} | C_{\max}, \sum w_j T_j$).
 
-- **Complete Formulation:** Detailed variables, bounds, integer overflow protections, and constraints are defined in [SOLVER_MODEL.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/SOLVER_MODEL.md).
+- **Complete Formulation:** Detailed variables, bounds, integer overflow protections, and constraints are defined in [SOLVER_MODEL.md](SOLVER_MODEL.md).
 - **Core Entities & Invariants:**
   - Schedule origin is strictly fixed at $t = 0$. All times are discrete non-negative integer relative minutes ($t \in \mathbb{N}_0$).
   - Machines $M$, Orders $J$, Operations $O_{j,k}$ with duration $p_{j,k} \ge 1$ and machine $m_{j,k}$.
@@ -191,8 +191,8 @@ When comparing a Baseline Schedule ($S_{\text{base}}$) to a Scenario Schedule ($
 
 ## 7. Persistence & REST API Summary
 
-- **Persistence:** Local SQLite 3 operating in Write-Ahead Logging (`WAL`) mode with `PRAGMA synchronous = NORMAL;`, `PRAGMA busy_timeout = 5000;`, and `PRAGMA foreign_keys = ON;` enforced on every connection. Service layer owns atomic transaction boundaries with `with session.begin():`. Safe backups use `VACUUM INTO 'backup.sqlite3'`. Detailed schema definitions are in [DATA_AND_API.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DATA_AND_API.md).
-- **REST API:** Versioned under `/api/v1` with standard `SuccessEnvelope` and `ErrorEnvelope` JSON payloads. Synchronous optimization with 60s timeout cap (client timeout 75s). Full schemas in [DATA_AND_API.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DATA_AND_API.md#3-rest-api-contract-apiv1).
+- **Persistence:** Local SQLite 3 operating in Write-Ahead Logging (`WAL`) mode with `PRAGMA synchronous = NORMAL;`, `PRAGMA busy_timeout = 5000;`, and `PRAGMA foreign_keys = ON;` enforced on every connection. Service layer owns atomic transaction boundaries with `with session.begin():`. Safe backups use `VACUUM INTO 'backup.sqlite3'`. Detailed schema definitions are in [DATA_AND_API.md](DATA_AND_API.md).
+- **REST API:** Versioned under `/api/v1` with standard `SuccessEnvelope` and `ErrorEnvelope` JSON payloads. Synchronous optimization with 60s timeout cap (client timeout 75s). Full schemas in [DATA_AND_API.md](DATA_AND_API.md#3-rest-api-contract-apiv1).
 
 ---
 
@@ -273,7 +273,7 @@ Opwise specifies explicit UI behavior for 15 operational states (`PROJECT_RULES.
 
 - **Formats Supported:** Strict CSV bundles and multi-sheet Microsoft Excel (`.xlsx`) workbooks.
 - **Required Worksheets / Files:** `Machines`, `Orders`, `Operations`, and optional `Downtimes`.
-- **Two-Phase Import:** Phase 1 Preview (validation & memory/DB staging with downtime normalization) followed by Phase 2 Explicit Confirm (atomic database commit). Complete schemas in [DATA_AND_API.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DATA_AND_API.md#4-csv-and-excel-data-exchange-specifications).
+- **Two-Phase Import:** Phase 1 Preview (validation & memory/DB staging with downtime normalization) followed by Phase 2 Explicit Confirm (atomic database commit). Complete schemas in [DATA_AND_API.md](DATA_AND_API.md#4-csv-and-excel-data-exchange-specifications).
 
 ---
 
@@ -300,4 +300,4 @@ All four verification gates are classified under the 4-tier evaluation taxonomy:
 
 **Final Specification Status:** The specification package is **complete, internally consistent, and ready for human review and implementation approval.** The application itself has not been implemented or verified.
 
-Detailed findings and acceptance tests are documented in [TEST_AND_RELEASE_PLAN.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/TEST_AND_RELEASE_PLAN.md).
+Detailed findings and acceptance tests are documented in [TEST_AND_RELEASE_PLAN.md](TEST_AND_RELEASE_PLAN.md).

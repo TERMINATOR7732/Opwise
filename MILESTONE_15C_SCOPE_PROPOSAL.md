@@ -61,15 +61,15 @@ No repository discrepancies, uncommitted changes, or detached HEAD states were d
 
 The following canonical engineering and governance documents were reviewed in full:
 
-1. [`PROJECT_RULES.md`](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/PROJECT_RULES.md): Governing permanent constitution, ₹0 budget mandate, local-first rule, anti-AI-slop UX, testing discipline, Git safety.
-2. [`SPECIFICATION.md`](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/SPECIFICATION.md): Document ID OPW-SPEC-001 (v1.3.0). Master product specification, user journeys, 6 input classifications, MVP non-goals.
-3. [`SOLVER_MODEL.md`](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/SOLVER_MODEL.md): Mathematical formulation, decision variables, half-open intervals $[S, C)$, downtime normalization, lexicographic gating.
-4. [`DATA_AND_API.md`](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DATA_AND_API.md): Relational database schema, SQLite WAL persistence, REST API v1 contracts, and error structures.
-5. [`TEST_AND_RELEASE_PLAN.md`](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/TEST_AND_RELEASE_PLAN.md): 14-milestone roadmap, test matrix TM-01 to TM-10, release readiness gates.
-6. [`DECISIONS.md`](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DECISIONS.md): Architecture Decision Records ADR-001 to ADR-012, post-MVP roadmap (UNRES-01 to UNRES-05).
-7. [`MILESTONE_14_RELEASE_AUDIT.md`](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/MILESTONE_14_RELEASE_AUDIT.md): Phase 1 completion and sign-off report.
-8. [`MILESTONE_15A_POST_COMMIT_AUDIT_REPORT.md`](file:///C:/Users/Admin/.gemini/antigravity/brain/10e8d50f-8816-4025-a03f-67bb3f4f1d27/MILESTONE_15A_POST_COMMIT_AUDIT_REPORT.md): Audit identifying `AC-CLOCK-01` persistence gap resolved in Milestone 15A.1.
-9. [`MILESTONE_15B_POST_IMPLEMENTATION_AUDIT_REPORT.md`](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/MILESTONE_15B_POST_IMPLEMENTATION_AUDIT_REPORT.md): Audit certifying solver, verifier, Gantt lifecycle visualization, and 200 backend tests.
+1. [`PROJECT_RULES.md`](PROJECT_RULES.md): Governing permanent constitution, ₹0 budget mandate, local-first rule, anti-AI-slop UX, testing discipline, Git safety.
+2. [`SPECIFICATION.md`](SPECIFICATION.md): Document ID OPW-SPEC-001 (v1.3.0). Master product specification, user journeys, 6 input classifications, MVP non-goals.
+3. [`SOLVER_MODEL.md`](SOLVER_MODEL.md): Mathematical formulation, decision variables, half-open intervals $[S, C)$, downtime normalization, lexicographic gating.
+4. [`DATA_AND_API.md`](DATA_AND_API.md): Relational database schema, SQLite WAL persistence, REST API v1 contracts, and error structures.
+5. [`TEST_AND_RELEASE_PLAN.md`](TEST_AND_RELEASE_PLAN.md): 14-milestone roadmap, test matrix TM-01 to TM-10, release readiness gates.
+6. [`DECISIONS.md`](DECISIONS.md): Architecture Decision Records ADR-001 to ADR-012, post-MVP roadmap (UNRES-01 to UNRES-05).
+7. [`MILESTONE_14_RELEASE_AUDIT.md`](MILESTONE_14_RELEASE_AUDIT.md): Phase 1 completion and sign-off report.
+8. `MILESTONE_15A_POST_COMMIT_AUDIT_REPORT.md`: Audit identifying `AC-CLOCK-01` persistence gap resolved in Milestone 15A.1.
+9. [`MILESTONE_15B_POST_IMPLEMENTATION_AUDIT_REPORT.md`](MILESTONE_15B_POST_IMPLEMENTATION_AUDIT_REPORT.md): Audit certifying solver, verifier, Gantt lifecycle visualization, and 200 backend tests.
 
 ---
 
@@ -594,12 +594,12 @@ Milestone 15C is currently in **PROPOSAL ONLY** status.
 
 ## 18. References to Source Files and Tests
 
-- `backend/opwise/services/scenario_service.py` ([scenario_service.py](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/backend/opwise/services/scenario_service.py#L233-L280))
-- `backend/opwise/services/scenario_math.py` ([scenario_math.py](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/backend/opwise/services/scenario_math.py#L29-L117))
-- `backend/opwise/services/snapshot.py` ([snapshot.py](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/backend/opwise/services/snapshot.py#L19-L105))
-- `backend/opwise/solver/cp_sat_model.py` ([cp_sat_model.py](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/backend/opwise/solver/cp_sat_model.py#L30-L120))
-- `backend/opwise/verifier/invariant_auditor.py` ([invariant_auditor.py](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/backend/opwise/verifier/invariant_auditor.py#L197-L218))
-- `backend/tests/integration/test_scenarios_api.py` ([test_scenarios_api.py](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/backend/tests/integration/test_scenarios_api.py#L46-L120))
-- `frontend/src/views/scenarios/DualGanttComparison.tsx` ([DualGanttComparison.tsx](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/frontend/src/views/scenarios/DualGanttComparison.tsx#L95-L135))
-- `frontend/src/views/scenarios/CreateScenarioModal.tsx` ([CreateScenarioModal.tsx](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/frontend/src/views/scenarios/CreateScenarioModal.tsx#L35-L50))
-- `frontend/src/views/schedules/gantt/GanttChart.tsx` ([GanttChart.tsx](file:///E:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/frontend/src/views/schedules/gantt/GanttChart.tsx#L21-L47))
+- `backend/opwise/services/scenario_service.py` ([scenario_service.py](backend/opwise/services/scenario_service.py))
+- `backend/opwise/services/scenario_math.py` ([scenario_math.py](backend/opwise/services/scenario_math.py))
+- `backend/opwise/services/snapshot.py` ([snapshot.py](backend/opwise/services/snapshot.py))
+- `backend/opwise/solver/cp_sat_model.py` ([cp_sat_model.py](backend/opwise/solver/cp_sat_model.py))
+- `backend/opwise/verifier/invariant_auditor.py` ([invariant_auditor.py](backend/opwise/verifier/invariant_auditor.py))
+- `backend/tests/integration/test_scenarios_api.py` ([test_scenarios_api.py](backend/tests/integration/test_scenarios_api.py))
+- `frontend/src/views/scenarios/DualGanttComparison.tsx` ([DualGanttComparison.tsx](frontend/src/views/scenarios/DualGanttComparison.tsx))
+- `frontend/src/views/scenarios/CreateScenarioModal.tsx` ([CreateScenarioModal.tsx](frontend/src/views/scenarios/CreateScenarioModal.tsx))
+- `frontend/src/views/schedules/gantt/GanttChart.tsx` ([GanttChart.tsx](frontend/src/views/schedules/gantt/GanttChart.tsx))

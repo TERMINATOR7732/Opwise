@@ -106,7 +106,7 @@ The TypeScript clean-room verifier (`clientVerifier.ts`) was executed against al
 
 ### 6.1 Technical Readiness Assessment
 1. **Demo Build Bundle:** Verified completely functional locally. Static assets resolve correctly to `/Opwise/assets/...`.
-2. **Workflow Configuration:** [`.github/workflows/deploy-demo.yml`](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/.github/workflows/deploy-demo.yml) is fully written and tested.
+2. **Workflow Configuration:** [`.github/workflows/deploy-demo.yml`](.github/workflows/deploy-demo.yml) is fully written and tested.
 3. **Repository Pages Status:** The GitHub API endpoint `repos/TERMINATOR7732/Opwise/pages` returns HTTP 404 (`Not Found`).
 4. **Failure Cause:** GitHub Actions runner token lacks administrative authority to enable GitHub Pages on an unconfigured public repo without initial owner activation.
 

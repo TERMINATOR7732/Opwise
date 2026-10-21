@@ -176,7 +176,7 @@ npm run build:demo
 Opwise is deployed as a standalone client-side demo with zero external cloud dependencies:
 
 - **Primary Live Demo URL:** [https://opwise.vercel.app](https://opwise.vercel.app)
-- **Alternative / Legacy Deployment:** [https://terminator7732.github.io/Opwise/](https://terminator7732.github.io/Opwise/) (GitHub Pages workflow configured in [`.github/workflows/deploy-demo.yml`](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/.github/workflows/deploy-demo.yml))
+- **Alternative / Legacy Deployment:** [https://terminator7732.github.io/Opwise/](https://terminator7732.github.io/Opwise/) (GitHub Pages workflow configured in [`.github/workflows/deploy-demo.yml`](.github/workflows/deploy-demo.yml))
 - **Client-Side Demo Features:**
   - 6 pre-solved synthetic industrial demo fixtures (Normal, Bottleneck, High Load, Urgent Orders, Machine Downtime, and Invalid/Corrupt Input).
   - Standalone Plant Clock & Shop-Floor Execution Simulation (in-memory clock advance, operation lifecycle state tracking, remaining-duration adjustments, and supervisor reconciliation).
@@ -190,19 +190,19 @@ Opwise is deployed as a standalone client-side demo with zero external cloud dep
 
 | Document | Description |
 |---|---|
-| [PROJECT_RULES.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/PROJECT_RULES.md) | Permanent constitution: ₹0 operating cost, anti-AI-slop UI, evidence-backed tests. |
-| [SPECIFICATION.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/SPECIFICATION.md) | Authoritative product specification, workflows, and 6 synthetic demo definitions. |
-| [ARCHITECTURE.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/ARCHITECTURE.md) | Monorepo blueprint, component responsibilities, and deployment topology. |
-| [SOLVER_MODEL.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/SOLVER_MODEL.md) | Mathematical formulation, half-open interval contact, and verifier contracts. |
-| [DATA_AND_API.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DATA_AND_API.md) | Relational schema, SQLite WAL configuration, and OpenAPI 3.1 endpoint envelopes. |
-| [TEST_AND_RELEASE_PLAN.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/TEST_AND_RELEASE_PLAN.md) | Verification protocol, 16 test categories, and 12 production release gates. |
-| [DECISIONS.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/DECISIONS.md) | Architecture Decision Records (ADRs 001–012). |
-| [MILESTONE_14_RELEASE_AUDIT.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/MILESTONE_14_RELEASE_AUDIT.md) | Phase 1 release readiness audit and verification log. |
-| [MILESTONE_15D_SCOPE_PROPOSAL.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/MILESTONE_15D_SCOPE_PROPOSAL.md) | Phase 2 shop-floor execution controls specification of record. |
-| [MILESTONE_15D_POST_IMPLEMENTATION_AUDIT_REPORT.md](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/MILESTONE_15D_POST_IMPLEMENTATION_AUDIT_REPORT.md) | Phase 2 independent post-implementation audit & release remediation log. |
+| [PROJECT_RULES.md](PROJECT_RULES.md) | Permanent constitution: ₹0 operating cost, anti-AI-slop UI, evidence-backed tests. |
+| [SPECIFICATION.md](SPECIFICATION.md) | Authoritative product specification, workflows, and 6 synthetic demo definitions. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Monorepo blueprint, component responsibilities, and deployment topology. |
+| [SOLVER_MODEL.md](SOLVER_MODEL.md) | Mathematical formulation, half-open interval contact, and verifier contracts. |
+| [DATA_AND_API.md](DATA_AND_API.md) | Relational schema, SQLite WAL configuration, and OpenAPI 3.1 endpoint envelopes. |
+| [TEST_AND_RELEASE_PLAN.md](TEST_AND_RELEASE_PLAN.md) | Verification protocol, 16 test categories, and 12 production release gates. |
+| [DECISIONS.md](DECISIONS.md) | Architecture Decision Records (ADRs 001–012). |
+| [MILESTONE_14_RELEASE_AUDIT.md](MILESTONE_14_RELEASE_AUDIT.md) | Phase 1 release readiness audit and verification log. |
+| [MILESTONE_15D_SCOPE_PROPOSAL.md](MILESTONE_15D_SCOPE_PROPOSAL.md) | Phase 2 shop-floor execution controls specification of record. |
+| [MILESTONE_15D_POST_IMPLEMENTATION_AUDIT_REPORT.md](MILESTONE_15D_POST_IMPLEMENTATION_AUDIT_REPORT.md) | Phase 2 independent post-implementation audit & release remediation log. |
 
 ---
 
 ## 8. License
 
-Opwise is open-source software licensed under the [MIT License](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/LICENSE).
+Opwise is open-source software licensed under the [MIT License](LICENSE).
