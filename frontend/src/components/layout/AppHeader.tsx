@@ -258,7 +258,7 @@ function PlantClockWidget({
       title="Plant Clock represents current operational simulated shop floor minute"
     >
       <span style={{ fontSize: 'var(--font-size-body)' }} aria-hidden="true">⏱️</span>
-      <span style={{ color: 'var(--text-secondary)' }}>Plant Clock:</span>
+      <span className="plant-clock-label" style={{ color: 'var(--text-secondary)' }}>Plant Clock:</span>
       <strong className="font-mono" style={{ color: 'var(--color-primary)' }}>t₀ = {currentTime}m</strong>
       <Button
         variant="secondary"
@@ -311,7 +311,7 @@ export function AppHeader({ onToggleSidebar, isSidebarOpen }: AppHeaderProps): R
   return (
     <header className="app-header">
       <BrandLogo onToggleSidebar={onToggleSidebar} isSidebarOpen={isSidebarOpen} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div className="app-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <Button
           variant="secondary"
           size="sm"
@@ -320,7 +320,7 @@ export function AppHeader({ onToggleSidebar, isSidebarOpen }: AppHeaderProps): R
           style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
         >
           <span aria-hidden="true">🧭</span>
-          <span>Guided Tour</span>
+          <span className="tour-button-label">Guided Tour</span>
         </Button>
         {factoryCtx && (
           <PlantClockWidget

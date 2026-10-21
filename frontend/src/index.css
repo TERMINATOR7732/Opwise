@@ -86,6 +86,8 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 /* Headings Visual Hierarchy */
@@ -143,6 +145,8 @@ p, span, label, input, button, select, textarea {
   display: flex;
   min-height: 100vh;
   flex-direction: column;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 .app-header {
@@ -471,6 +475,39 @@ table td {
 
   .main-content {
     padding: 1rem;
+  }
+
+  .app-header {
+    padding: 0 0.75rem;
+  }
+
+  .app-header-actions {
+    gap: 0.35rem;
+  }
+
+  .tour-button-label {
+    display: none;
+  }
+
+  .plant-clock-label {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-header {
+    height: auto;
+    min-height: var(--header-height);
+    padding: 0.5rem 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .app-header-actions {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 
