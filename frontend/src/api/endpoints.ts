@@ -53,27 +53,10 @@ import {
   saveDemoFactory,
   createDemoWorkspace,
   deleteDemoWorkspace,
+  optimizeDemoSchedule,
 } from '../demo/demoService';
 import { exportDemoScheduleCsv, exportDemoScheduleJson } from '../demo/demoExport';
 import { previewDemoImport, confirmDemoImport, downloadDemoTemplate } from '../demo/demoImport';
-
-function createMockOptimizedResponse(workspaceId: string, req: OptimizeRequest): OptimizeResponseData {
-  const detail = getDemoScheduleDetail(workspaceId, '');
-  const ver = verifyDemoSchedule(workspaceId);
-  return {
-    schedule_id: detail.id,
-    name: `${req.name} (${detail.name})`,
-    objective_type: req.objective_type || detail.objective_type,
-    solver_status: detail.solver_status,
-    verification_status: detail.verification_status,
-    metrics: detail.metrics,
-    solver_telemetry: detail.solver_telemetry,
-    verification_report: ver,
-    scheduled_operations: detail.scheduled_operations,
-    downtimes: detail.downtimes,
-    machines: detail.machines,
-  };
-}
 
 function createMockComparisonResponse(workspaceId: string, baselineId: string): ScenarioComparisonResponse {
   const detail = getDemoScheduleDetail(workspaceId, baselineId);
@@ -143,13 +126,13 @@ export const apiEndpoints = {
   /** Run on-demand independent clean-room verification for a schedule */
   verifySchedule: (workspaceId: string, scheduleId: string): Promise<VerificationReportResponse> =>
     isDemoMode()
-      ? Promise.resolve(verifyDemoSchedule(workspaceId))
+      ? Promise.resolve(verifyDemoSchedule(workspaceId, scheduleId))
       : api.post<VerificationReportResponse>(`/workspaces/${workspaceId}/schedules/${scheduleId}/verify`),
 
   /** Execute synchronous CP-SAT optimization and independent verification */
   optimizeSchedule: (workspaceId: string, req: OptimizeRequest): Promise<OptimizeResponseData> =>
     isDemoMode()
-      ? Promise.resolve(createMockOptimizedResponse(workspaceId, req))
+      ? Promise.resolve(optimizeDemoSchedule(workspaceId, req))
       : api.post<OptimizeResponseData>(`/workspaces/${workspaceId}/optimize`, req),
 
   /** Fetch complete factory configuration for a workspace */

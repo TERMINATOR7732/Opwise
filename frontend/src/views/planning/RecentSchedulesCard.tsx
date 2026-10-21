@@ -8,6 +8,7 @@ import { Card } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { ScheduleSummaryResponse } from '../../types/api';
+import { isDemoMode } from '../../demo/demoService';
 
 export interface RecentSchedulesCardProps {
   schedules: ScheduleSummaryResponse[];
@@ -22,7 +23,8 @@ function StatusPill({ status }: { status: string }): React.ReactElement {
     : status === 'FEASIBLE' || status === 'DEMO_SIMULATION' || status === 'NO_WORK_STATE'
     ? 'warning'
     : 'critical';
-  return <Badge variant={variant} className="font-mono">{status}</Badge>;
+  const label = isDemoMode() && status === 'OPTIMAL' ? 'PRECOMPUTED CP-SAT (OPTIMAL)' : status;
+  return <Badge variant={variant} className="font-mono">{label}</Badge>;
 }
 
 function ScheduleHistoryRow({

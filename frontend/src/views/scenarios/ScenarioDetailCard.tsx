@@ -8,6 +8,7 @@ import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { ScenarioResponse } from '../../types/scenarios';
+import { isDemoMode } from '../../demo/demoService';
 
 interface ScenarioDetailCardProps {
   scenario: ScenarioResponse;
@@ -95,7 +96,9 @@ export function ScenarioDetailCard({
                 scenario.comparison?.unlike_comparison_warning ? (
                   <Badge variant="warning">DEMO SIMULATION</Badge>
                 ) : (
-                  <Badge variant="optimal">REOPTIMIZED (READY)</Badge>
+                  <Badge variant="optimal">
+                    {isDemoMode() ? 'PRECOMPUTED CP-SAT (READY)' : 'REOPTIMIZED (READY)'}
+                  </Badge>
                 )
               ) : (
                 <Badge variant="neutral">NOT SOLVED YET</Badge>

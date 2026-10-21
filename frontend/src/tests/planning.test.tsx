@@ -227,6 +227,38 @@ describe('Planning Components UI Markup', () => {
     expect(markup).toContain('12.0%');
   });
 
+  it('renders OptimizationResultCard with DEMO_SIMULATION and does not fabricate 0.0% exact gap when optimality_gap is null', () => {
+    const demoSimResponse: OptimizeResponseData = {
+      ...mockOptimizeResponse,
+      solver_status: 'DEMO_SIMULATION',
+      metrics: {
+        ...mockOptimizeResponse.metrics,
+        optimality_gap: null,
+        objective_value: null,
+        best_objective_bound: null,
+      },
+    };
+    const markup = renderToStaticMarkup(<OptimizationResultCard result={demoSimResponse} />);
+    expect(markup).toContain('Demo Simulation (Client-Side Heuristic)');
+    expect(markup).toContain('—');
+    expect(markup).not.toContain('0.0% (Exact)');
+    expect(markup).not.toContain('CP-SAT Proven Optimum Found');
+  });
+
+  it('does not fabricate 0.0% exact gap even if solver_status is OPTIMAL when optimality_gap is null', () => {
+    const nullGapResponse: OptimizeResponseData = {
+      ...mockOptimizeResponse,
+      solver_status: 'OPTIMAL',
+      metrics: {
+        ...mockOptimizeResponse.metrics,
+        optimality_gap: null,
+      },
+    };
+    const markup = renderToStaticMarkup(<OptimizationResultCard result={nullGapResponse} />);
+    expect(markup).toContain('—');
+    expect(markup).not.toContain('0.0% (Exact)');
+  });
+
   it('renders OptimizationResultCard with infeasible model disclosure', () => {
     const infeasibleResponse: OptimizeResponseData = {
       ...mockOptimizeResponse,

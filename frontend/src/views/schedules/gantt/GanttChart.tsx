@@ -6,6 +6,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Badge } from '../../../components/common/Badge';
 import { DowntimeResponse, ScheduledOperationResponse } from '../../../types/api';
+import { isDemoMode } from '../../../demo/demoService';
 import {
   calculateMachineUtilization,
   calculateTimeTicks,
@@ -155,7 +156,13 @@ export function GanttChart({
             </Badge>
           )}
           <Badge variant={solverBadgeVariant} className="font-mono">
-            {isOptimal ? 'CP-SAT OPTIMAL' : solverStatus === 'DEMO_SIMULATION' ? 'DEMO SIMULATION' : solverStatus}
+            {isOptimal
+              ? isDemoMode()
+                ? 'PRECOMPUTED CP-SAT (OPTIMAL)'
+                : 'CP-SAT OPTIMAL'
+              : solverStatus === 'DEMO_SIMULATION'
+              ? 'DEMO SIMULATION'
+              : solverStatus}
           </Badge>
           <Badge variant={isVerified ? 'optimal' : 'critical'} className="font-mono">
             {verificationStatus}

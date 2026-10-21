@@ -15,6 +15,8 @@ import {
   FactoryConfigResponse,
   OccupiedMachineSummary,
   OperationResponse,
+  OptimizeRequest,
+  OptimizeResponseData,
   OrderResponse,
   ReadyOperationSummary,
   ScheduleDetailResponse,
@@ -34,7 +36,7 @@ import {
 } from '../types/scenarios';
 import { ApiClientError } from '../api/client';
 import { DEMO_FIXTURES, DEMO_SCENARIO_LIST, DemoFixture } from './fixtures';
-import { verifyScheduleClient } from './clientVerifier';
+import { verifyScheduleClient, normalizeDowntimes, recomputeMetrics } from './clientVerifier';
 import { buildDemoReport } from './demoReportBuilder';
 import { clearDemoStagedImports } from './demoImport';
 
@@ -47,6 +49,7 @@ let runtimeDemoModeOverride: boolean | null = null;
 const demoFactoryState: Record<string, FactoryConfigResponse> = {};
 const demoScenariosState: Record<string, ScenarioResponse[]> = {};
 const demoRecoverySchedules: Record<string, ScheduleDetailResponse> = {};
+const demoWorkspaceSchedules: Record<string, ScheduleDetailResponse[]> = {};
 const demoCustomWorkspaces: WorkspaceResponse[] = [];
 
 function findOperationAndOrder(
@@ -168,6 +171,7 @@ export function resetDemoFactoryState(workspaceId?: string): void {
   if (workspaceId) {
     delete demoFactoryState[workspaceId];
     delete demoScenariosState[workspaceId];
+    delete demoWorkspaceSchedules[workspaceId];
   } else {
     for (const key of Object.keys(demoFactoryState)) {
       delete demoFactoryState[key];
@@ -177,6 +181,9 @@ export function resetDemoFactoryState(workspaceId?: string): void {
     }
     for (const key of Object.keys(demoRecoverySchedules)) {
       delete demoRecoverySchedules[key];
+    }
+    for (const key of Object.keys(demoWorkspaceSchedules)) {
+      delete demoWorkspaceSchedules[key];
     }
     demoCustomWorkspaces.length = 0;
     clearDemoStagedImports();
@@ -221,7 +228,7 @@ export function saveDemoFactory(workspaceId: string, payload: FactoryConfigPaylo
       sequence_index: op.sequence_index,
       machine_id: op.machine_id,
       processing_minutes: op.processing_minutes,
-      status: op.status || 'PLANNED',
+      status: op.status === 'IN_PROGRESS' || op.status === 'COMPLETED' ? op.status : 'PLANNED',
       actual_start_minute: op.actual_start_minute ?? null,
       actual_end_minute: op.actual_end_minute ?? null,
       remaining_duration_minutes: op.remaining_duration_minutes ?? null,
@@ -759,38 +766,57 @@ export function adjustDemoRemainingDuration(
   return getDemoExecutionStatus(workspaceId);
 }
 
-export function getDemoSchedules(workspaceId: string): ScheduleSummaryResponse[] {
+function initDemoSchedulesForWorkspace(workspaceId: string): ScheduleDetailResponse[] {
   const fixture = findDemoFixtureByWorkspace(workspaceId);
-  const s = fixture.schedule;
-  return [
-    {
-      id: s.id,
-      workspace_id: s.workspace_id,
-      name: s.name,
-      objective_type: s.objective_type,
-      solver_status: s.solver_status,
-      verification_status: s.verification_status,
-      makespan_minutes: s.metrics.makespan_minutes,
-      weighted_tardiness: s.metrics.weighted_tardiness,
-      late_order_count: s.metrics.late_order_count,
-      on_time_rate: s.metrics.on_time_rate,
-      created_at: s.created_at,
-    },
-  ];
+  return [JSON.parse(JSON.stringify(fixture.schedule))];
+}
+
+export function getMutableDemoSchedules(workspaceId: string): ScheduleDetailResponse[] {
+  if (!demoWorkspaceSchedules[workspaceId]) {
+    demoWorkspaceSchedules[workspaceId] = initDemoSchedulesForWorkspace(workspaceId);
+  }
+  return demoWorkspaceSchedules[workspaceId];
+}
+
+export function getDemoSchedules(workspaceId: string): ScheduleSummaryResponse[] {
+  const list = getMutableDemoSchedules(workspaceId);
+  return list.map((s) => ({
+    id: s.id,
+    workspace_id: s.workspace_id,
+    name: s.name,
+    objective_type: s.objective_type,
+    solver_status: s.solver_status,
+    verification_status: s.verification_status,
+    makespan_minutes: s.metrics.makespan_minutes,
+    weighted_tardiness: s.metrics.weighted_tardiness,
+    late_order_count: s.metrics.late_order_count,
+    on_time_rate: s.metrics.on_time_rate,
+    created_at: s.created_at,
+  }));
 }
 
 export function getDemoScheduleDetail(workspaceId: string, scheduleId: string): ScheduleDetailResponse {
-  if (demoRecoverySchedules[scheduleId]) {
+  if (scheduleId && demoRecoverySchedules[scheduleId]) {
     return JSON.parse(JSON.stringify(demoRecoverySchedules[scheduleId]));
+  }
+  const list = getMutableDemoSchedules(workspaceId);
+  if (scheduleId) {
+    const found = list.find((s) => s.id === scheduleId);
+    if (found) {
+      return JSON.parse(JSON.stringify(found));
+    }
+  }
+  if (list.length > 0) {
+    return JSON.parse(JSON.stringify(list[0]));
   }
   const fixture = findDemoFixtureByWorkspace(workspaceId);
   return JSON.parse(JSON.stringify(fixture.schedule));
 }
 
-export function verifyDemoSchedule(workspaceId: string): VerificationReportResponse {
-  const fixture = findDemoFixtureByWorkspace(workspaceId);
+export function verifyDemoSchedule(workspaceId: string, scheduleId?: string): VerificationReportResponse {
+  const schedule = getDemoScheduleDetail(workspaceId, scheduleId || '');
   const factory = getDemoFactory(workspaceId);
-  const result = verifyScheduleClient(factory, fixture.schedule);
+  const result = verifyScheduleClient(factory, schedule);
   return {
     is_valid: result.is_valid,
     checks_run: result.checks_run,
@@ -804,6 +830,213 @@ export function getDemoScheduleReport(workspaceId: string): ScheduleReportRespon
   const factory = getDemoFactory(workspaceId);
   const verification = verifyScheduleClient(factory, fixture.schedule);
   return buildDemoReport(factory, fixture.schedule, verification);
+}
+
+export function scheduleHeuristic(factory: FactoryConfigResponse): ScheduledOperationResponse[] {
+  const scheduledOps: ScheduledOperationResponse[] = [];
+  const machineAvail = new Map<string, number>();
+  const orderAvail = new Map<string, number>();
+
+  for (const m of factory.machines) {
+    machineAvail.set(m.id, 0);
+  }
+  for (const o of factory.orders) {
+    orderAvail.set(o.id, o.release_minute);
+  }
+
+  const completedOpIds = new Set<string>();
+  const allOps: { order: OrderResponse; op: OperationResponse }[] = [];
+  for (const order of factory.orders) {
+    for (const op of order.operations) {
+      allOps.push({ order, op });
+    }
+  }
+
+  allOps.sort((a, b) => a.op.sequence_index - b.op.sequence_index);
+
+  while (scheduledOps.length < allOps.length) {
+    const readyOps = allOps.filter(({ order, op }) => {
+      if (completedOpIds.has(op.id)) return false;
+      if (op.sequence_index <= 1) return true;
+      const pred = order.operations.find((p) => p.sequence_index === op.sequence_index - 1);
+      return pred ? completedOpIds.has(pred.id) : true;
+    });
+
+    if (readyOps.length === 0) {
+      const remaining = allOps.filter(({ op }) => !completedOpIds.has(op.id));
+      if (remaining.length > 0) {
+        readyOps.push(remaining[0]);
+      } else {
+        break;
+      }
+    }
+
+    readyOps.sort((a, b) => {
+      const aReady = Math.max(machineAvail.get(a.op.machine_id) || 0, orderAvail.get(a.order.id) || 0);
+      const bReady = Math.max(machineAvail.get(b.op.machine_id) || 0, orderAvail.get(b.order.id) || 0);
+      if (aReady !== bReady) return aReady - bReady;
+      if (a.order.due_minute !== b.order.due_minute) return a.order.due_minute - b.order.due_minute;
+      return b.order.tardiness_weight - a.order.tardiness_weight;
+    });
+
+    const candidate = readyOps[0];
+    const { order, op } = candidate;
+    const mId = op.machine_id;
+
+    let t = Math.max(
+      machineAvail.get(mId) || 0,
+      orderAvail.get(order.id) || 0,
+      order.release_minute
+    );
+
+    if (op.status === 'COMPLETED' && typeof op.actual_start_minute === 'number' && typeof op.actual_end_minute === 'number') {
+      t = op.actual_start_minute;
+    } else if (op.status === 'IN_PROGRESS' && typeof op.actual_start_minute === 'number') {
+      t = op.actual_start_minute;
+    }
+
+    const mDts = factory.downtimes.filter((d) => d.machine_id === mId);
+    let valid = false;
+    let guard = 0;
+    while (!valid && guard < 100) {
+      guard++;
+      valid = true;
+      for (const dt of mDts) {
+        if (Math.max(t, dt.start_minute) < Math.min(t + op.processing_minutes, dt.end_minute)) {
+          t = dt.end_minute;
+          valid = false;
+          break;
+        }
+      }
+    }
+
+    const startMinute = t;
+    const endMinute = t + op.processing_minutes;
+    const slack = Math.max(0, order.due_minute - endMinute);
+
+    machineAvail.set(mId, Math.max(machineAvail.get(mId) || 0, endMinute));
+    orderAvail.set(order.id, Math.max(orderAvail.get(order.id) || 0, endMinute));
+    completedOpIds.add(op.id);
+
+    scheduledOps.push({
+      operation_id: op.id,
+      order_id: order.id,
+      sequence_index: op.sequence_index,
+      machine_id: mId,
+      start_minute: startMinute,
+      end_minute: endMinute,
+      duration: op.processing_minutes,
+      slack_minutes: slack,
+      status: op.status === 'IN_PROGRESS' || op.status === 'COMPLETED' ? op.status : 'PLANNED',
+    });
+  }
+
+  return scheduledOps;
+}
+
+export function optimizeDemoSchedule(workspaceId: string, req: OptimizeRequest): OptimizeResponseData {
+  const factory = getMutableDemoFactory(workspaceId);
+  const now = new Date().toISOString();
+  const scheduleId = `sched-demo-${Date.now()}`;
+  const schedName = req.name.startsWith('[Demo Simulation]') ? req.name : `[Demo Simulation] ${req.name}`;
+
+  if (factory.orders.length === 0) {
+    const emptyResponse: OptimizeResponseData = {
+      schedule_id: scheduleId,
+      name: schedName,
+      objective_type: req.objective_type || 'PURE_MAKESPAN',
+      solver_status: 'NO_WORK_STATE',
+      verification_status: 'SKIPPED',
+      metrics: {
+        makespan_minutes: 0,
+        weighted_tardiness: 0,
+        late_order_count: 0,
+        on_time_rate: 100.0,
+        objective_value: null,
+        best_objective_bound: null,
+        optimality_gap: null,
+      },
+      solver_telemetry: {
+        wall_clock_time_seconds: 0.001,
+        deterministic_time: 0.001,
+        user_cpu_time_seconds: 0.001,
+        termination_reason: 'No orders or operations available to schedule in factory.',
+      },
+      verification_report: null,
+      scheduled_operations: [],
+      downtimes: factory.downtimes,
+      machines: factory.machines.map((m) => ({ id: m.id, name: m.name })),
+    };
+    return emptyResponse;
+  }
+
+  const scheduledOps = scheduleHeuristic(factory);
+
+  const detail: ScheduleDetailResponse = {
+    id: scheduleId,
+    workspace_id: workspaceId,
+    name: schedName,
+    objective_type: req.objective_type || 'PURE_MAKESPAN',
+    solver_status: 'DEMO_SIMULATION',
+    verification_status: 'VERIFIED',
+    metrics: {
+      makespan_minutes: 0,
+      weighted_tardiness: 0,
+      late_order_count: 0,
+      on_time_rate: 100.0,
+      objective_value: null,
+      best_objective_bound: null,
+      optimality_gap: null,
+    },
+    solver_telemetry: {
+      wall_clock_time_seconds: 0.005,
+      deterministic_time: 0.005,
+      user_cpu_time_seconds: 0.005,
+      termination_reason:
+        'Client-side demo simulation: Static demo does not execute OR-Tools CP-SAT in the browser. Run locally with the Python backend for certified mathematical optimization.',
+    },
+    scheduled_operations: scheduledOps,
+    downtimes: factory.downtimes,
+    machines: factory.machines.map((m) => ({ id: m.id, name: m.name })),
+    current_time_minute: factory.current_time_minute,
+    created_at: now,
+  };
+
+  const mergedDts = normalizeDowntimes(factory.downtimes);
+  const recomputed = recomputeMetrics(factory, detail, mergedDts);
+  detail.metrics = {
+    makespan_minutes: recomputed.makespan_minutes,
+    weighted_tardiness: recomputed.total_weighted_tardiness,
+    late_order_count: recomputed.late_order_count,
+    on_time_rate: recomputed.on_time_rate,
+    objective_value: null,
+    best_objective_bound: null,
+    optimality_gap: null,
+  };
+
+  const verResult = verifyScheduleClient(factory, detail);
+  detail.verification_status = verResult.is_valid ? 'VERIFIED' : 'FAILED';
+
+  getMutableDemoSchedules(workspaceId).unshift(detail);
+
+  return {
+    schedule_id: detail.id,
+    name: detail.name,
+    objective_type: detail.objective_type,
+    solver_status: detail.solver_status,
+    verification_status: detail.verification_status,
+    metrics: detail.metrics,
+    solver_telemetry: detail.solver_telemetry,
+    verification_report: {
+      is_valid: verResult.is_valid,
+      checks_run: verResult.checks_run,
+      checks_passed: verResult.checks_passed,
+      violations: verResult.violations,
+    },
+    scheduled_operations: detail.scheduled_operations,
+    downtimes: detail.downtimes,
+    machines: detail.machines,
+  };
 }
 
 function initDemoScenariosForWorkspace(workspaceId: string): ScenarioResponse[] {

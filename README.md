@@ -60,7 +60,7 @@ Opwise/
 │   │   ├── context/                # Workspace & factory mutation providers
 │   │   ├── demo/                   # Standalone client demo mode & fixtures 1–6
 │   │   ├── views/                  # 6 navigation pillars (Factory, Schedules, Scenarios, etc.)
-│   │   └── tests/                  # 120 Vitest unit, component & verifier tests
+│   │   └── tests/                  # 155 Vitest unit, component & verifier tests
 └── .github/workflows/              # Automated CI & GitHub Pages deployment workflows
 ```
 
@@ -152,37 +152,37 @@ pytest tests/ -v --cov=opwise --cov-report=term-missing
 ```bash
 cd frontend
 
-# 1. Strict TypeScript type check
+# 1. ESLint static analysis
+npm run lint
+
+# 2. Strict TypeScript type check
 npm run typecheck
 
-# 2. Vitest unit, component, and client-verifier tests
+# 3. Vitest unit, component, and client-verifier tests
 npm run test
 
-# 3. Production bundle build
+# 4. Production bundle build
 npm run build
 
-# 4. Standalone static demo bundle build
+# 5. Standalone static demo bundle build
 npm run build:demo
 ```
-*Current test suite status: **120 / 120 passed** across 13 test files.*
+*Current test suite status: **155 / 155 passed** across 14 test files.*
 
 ---
 
 ## 6. Portfolio Demo Deployment & URL
 
-Opwise includes a standalone client-side demo mode designed for zero-cost hosting on **GitHub Pages**:
+Opwise is deployed as a standalone client-side demo with zero external cloud dependencies:
 
-- **Target Public Demo URL:** [`https://terminator7732.github.io/Opwise/`](https://terminator7732.github.io/Opwise/)
-- **Live Status Notice:**
-  > [!NOTE]
-  > The GitHub Pages deployment workflow ([`.github/workflows/deploy-demo.yml`](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/.github/workflows/deploy-demo.yml)) is fully configured and builds the static demo bundle targeting the `/Opwise/` base path.
-  >
-  > **Public live access is pending one-time repository owner enablement in GitHub:**
-  > In the repository settings (**Settings → Pages → Build and deployment → Source**), select **"GitHub Actions"**. Once enabled, pushing to `main` automatically deploys the live demo.
+- **Primary Live Demo URL:** [https://opwise.vercel.app](https://opwise.vercel.app)
+- **Alternative / Legacy Deployment:** [https://terminator7732.github.io/Opwise/](https://terminator7732.github.io/Opwise/) (GitHub Pages workflow configured in [`.github/workflows/deploy-demo.yml`](file:///e:/MHT%20CET%20REGISTRATION/BE/Task/Opwise/.github/workflows/deploy-demo.yml))
 - **Client-Side Demo Features:**
   - 6 pre-solved synthetic industrial demo fixtures (Normal, Bottleneck, High Load, Urgent Orders, Machine Downtime, and Invalid/Corrupt Input).
+  - Standalone Plant Clock & Shop-Floor Execution Simulation (in-memory clock advance, operation lifecycle state tracking, remaining-duration adjustments, and supervisor reconciliation).
+  - 8-Step Interactive Guided Tour introducing core production scheduling workflows.
   - Pure TypeScript Clean-Room Verifier running entirely in the browser to audit the 8 domain invariants live.
-  - Interactive Gantt chart with zoom, pan, and slack tooltips without requiring a running Python backend.
+  - Interactive Gantt chart with zoom, pan, machine utilization, and automated bottleneck diagnostics without requiring a running Python backend.
 
 ---
 

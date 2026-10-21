@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { Card } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { ScheduleDetailResponse } from '../../types/api';
+import { isDemoMode } from '../../demo/demoService';
 import { GanttChart } from '../schedules/gantt/GanttChart';
 
 interface DualGanttComparisonProps {
@@ -122,7 +123,9 @@ export function DualGanttComparison({
                 Recovery Schedule: {recoverySchedule.name}
               </span>
               {recoverySchedule.solver_status === 'OPTIMAL' ? (
-                <Badge variant="optimal">CP-SAT REOPTIMIZED</Badge>
+                <Badge variant="optimal">
+                  {isDemoMode() ? 'PRECOMPUTED CP-SAT (OPTIMAL)' : 'CP-SAT REOPTIMIZED'}
+                </Badge>
               ) : (
                 <Badge variant="warning">DEMO SIMULATION</Badge>
               )}

@@ -57,7 +57,7 @@ function StatusBanner({ status }: { status: string }): React.ReactElement {
 function KpiMetricsGrid({ result }: { result: OptimizeResponseData }): React.ReactElement {
   const m = result.metrics;
   const t = result.solver_telemetry;
-  const gapStr = (m.optimality_gap === 0 || (m.optimality_gap === null && result.solver_status === 'OPTIMAL'))
+  const gapStr = m.optimality_gap === 0
     ? '0.0% (Exact)'
     : m.optimality_gap !== null && m.optimality_gap !== undefined
     ? `${(m.optimality_gap * 100).toFixed(1)}%`

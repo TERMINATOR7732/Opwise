@@ -21,7 +21,7 @@ export interface ScheduleDetailCardProps {
 function ScheduleMetricsTiles({ s }: { s: ScheduleDetailResponse }): React.ReactElement {
   const m = s.metrics;
   const t = s.solver_telemetry;
-  const gapStr = (m.optimality_gap === 0 || (m.optimality_gap === null && s.solver_status === 'OPTIMAL'))
+  const gapStr = m.optimality_gap === 0
     ? '0.0% (Exact)'
     : m.optimality_gap !== null && m.optimality_gap !== undefined
     ? `${(m.optimality_gap * 100).toFixed(1)}%`

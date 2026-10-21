@@ -764,5 +764,44 @@ describe('Standalone Demo Mode Service & Data Provider', () => {
       expect(afterDelete.length).toBe(6);
       expect(afterDelete.some((w) => w.id === created.id)).toBe(false);
     });
+
+    it('executes client-side demo optimization with honest DEMO_SIMULATION status and null bounds', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      const res = await apiEndpoints.optimizeSchedule('ws-demo-1', {
+        name: 'Shift Optimization Test',
+        objective_type: 'PURE_MAKESPAN',
+      });
+
+      // No backend network requests in static demo
+      expect(fetchSpy).not.toHaveBeenCalled();
+      fetchSpy.mockRestore();
+
+      // Truthful solver status and null bounds
+      expect(res.solver_status).toBe('DEMO_SIMULATION');
+      expect(res.name).toContain('[Demo Simulation]');
+      expect(res.metrics.objective_value).toBeNull();
+      expect(res.metrics.best_objective_bound).toBeNull();
+      expect(res.metrics.optimality_gap).toBeNull();
+      expect(res.metrics.makespan_minutes).toBeGreaterThan(0);
+      expect(res.verification_status).toBe('VERIFIED');
+      expect(res.verification_report?.is_valid).toBe(true);
+      expect(res.solver_telemetry?.termination_reason).toContain('Client-side demo simulation');
+
+      // The new schedule is immediately listed in the workspace schedules
+      const schedules = await apiEndpoints.listSchedules('ws-demo-1');
+      expect(schedules.length).toBeGreaterThanOrEqual(2);
+      expect(schedules[0].id).toBe(res.schedule_id);
+      expect(schedules[0].solver_status).toBe('DEMO_SIMULATION');
+
+      // Detail retrieval and on-demand verification work for the simulated schedule
+      const detail = await apiEndpoints.getSchedule('ws-demo-1', res.schedule_id);
+      expect(detail.id).toBe(res.schedule_id);
+      expect(detail.solver_status).toBe('DEMO_SIMULATION');
+
+      const ver = await apiEndpoints.verifySchedule('ws-demo-1', res.schedule_id);
+      expect(ver.is_valid).toBe(true);
+      expect(ver.checks_passed).toBe(8);
+    });
   });
 });

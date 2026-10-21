@@ -15,6 +15,7 @@ import { useRouter } from '../router/RouterContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiEndpoints } from '../api/endpoints';
 import { ScheduleDetailResponse, ScheduleSummaryResponse } from '../types/api';
+import { isDemoMode } from '../demo/demoService';
 import { ScheduleDetailCard } from './schedules/ScheduleDetailCard';
 
 function ScheduleListRow({
@@ -28,10 +29,11 @@ function ScheduleListRow({
     : s.solver_status === 'FEASIBLE' || s.solver_status === 'DEMO_SIMULATION'
     ? 'warning'
     : 'critical';
+  const label = isDemoMode() && s.solver_status === 'OPTIMAL' ? 'PRECOMPUTED CP-SAT (OPTIMAL)' : s.solver_status;
   return (
     <tr style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: isSelected ? 'var(--color-primary-subtle, rgba(59, 130, 246, 0.05))' : 'transparent' }}>
       <td style={{ padding: '0.625rem 0.75rem', fontWeight: 600 }}>{s.name}</td>
-      <td style={{ padding: '0.625rem 0.75rem' }}><Badge variant={stVariant} className="font-mono">{s.solver_status}</Badge></td>
+      <td style={{ padding: '0.625rem 0.75rem' }}><Badge variant={stVariant} className="font-mono">{label}</Badge></td>
       <td style={{ padding: '0.625rem 0.75rem' }}><Badge variant={s.verification_status === 'VERIFIED' ? 'optimal' : 'neutral'} className="font-mono">{s.verification_status}</Badge></td>
       <td style={{ padding: '0.625rem 0.75rem' }} className="font-mono">{s.makespan_minutes}m</td>
       <td style={{ padding: '0.625rem 0.75rem' }} className="font-mono">{s.weighted_tardiness}</td>
